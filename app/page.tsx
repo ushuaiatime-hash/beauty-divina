@@ -550,3 +550,7 @@ export default function Home() {
     </>
   );
 }
+git add .
+git commit -m "Trigger deploy"
+git push origin main
+
