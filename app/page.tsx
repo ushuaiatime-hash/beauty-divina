@@ -206,7 +206,7 @@ function Booking({onSwitch,profs}:{onSwitch:()=>void;profs:Prof[]}) {
 
   const ci=BSTEPS.indexOf(step);
   return (
-    <div className="gbg" style={{minHeight:"100dvh",background:"var(--bg)"}}>
+    <div style={{minHeight:"100dvh",background:"var(--bg)"}}>
       <style>{CSS}</style>
       <header style={{padding:"44px 20px 22px",borderBottom:"1px solid var(--br)",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg,rgba(200,245,66,.07),transparent)",pointerEvents:"none"}}/>
