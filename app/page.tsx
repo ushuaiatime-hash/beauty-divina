@@ -108,20 +108,9 @@ const msgReminder   = (cl:string,d:string,t:string,sv:string) => `¡Hola ${cl}! 
 const waLink        = (ph:string,msg:string) => `https://wa.me/${ph.replace(/\D/g,"")}?text=${encodeURIComponent(msg)}`;
 
 type Apt = { id:string;profId:string;svcId:string;date:string;time:string;end:string;status:string;client:string;phone:string;notes:string };
-let DB:Apt[] = [
-  { id:"a1",profId:"p1",svcId:"s1",date:today(),    time:"10:00",end:"11:00",status:"confirmed",client:"Laura Gómez", phone:"1144445555",notes:"" },
-  { id:"a2",profId:"p2",svcId:"s3",date:today(),    time:"11:30",end:"13:00",status:"pending",  client:"Sofía Ríos",  phone:"1166667777",notes:"Primera vez" },
-  { id:"a3",profId:"p1",svcId:"s2",date:addDays(1), time:"14:00",end:"15:15",status:"pending",  client:"Mara López",  phone:"1177778888",notes:"" },
-  { id:"a4",profId:"p2",svcId:"s4",date:addDays(1), time:"10:00",end:"10:50",status:"confirmed",client:"Carla Vega",  phone:"1133334444",notes:"Alergia al kiwi" },
-  { id:"a5",profId:"p1",svcId:"s3",date:addDays(2), time:"09:00",end:"10:30",status:"pending",  client:"Ana Romero",  phone:"1199990000",notes:"" },
-  { id:"a6",profId:"p1",svcId:"s1",date:today(),    time:"09:00",end:"10:00",status:"completed",client:"Paula Díaz",  phone:"1155556666",notes:"" },
-  { id:"a7",profId:"p2",svcId:"s4",date:today(),    time:"09:00",end:"09:50",status:"completed",client:"Mili Funes",  phone:"1122223333",notes:"" },
-  { id:"a8",profId:"p1",svcId:"s2",date:addDays(-1),time:"10:00",end:"11:15",status:"completed",client:"Romi Paz",    phone:"1188889999",notes:"" },
-  { id:"a9",profId:"p2",svcId:"s3",date:addDays(-1),time:"14:00",end:"15:30",status:"completed",client:"Nico Torres", phone:"1100001111",notes:"" },
-  { id:"a10",profId:"p1",svcId:"s1",date:addDays(-2),time:"11:00",end:"12:00",status:"completed",client:"Flor Reyes", phone:"1144440000",notes:"" },
-  { id:"a11",profId:"p1",svcId:"s4",date:addDays(-3),time:"10:00",end:"10:50",status:"completed",client:"Juli Mora",  phone:"1177771111",notes:"" },
-  { id:"a12",profId:"p2",svcId:"s2",date:addDays(-3),time:"15:00",end:"16:15",status:"completed",client:"Caro Blanco",phone:"1166662222",notes:"" },
-];
+
+// Datos locales para compatibilidad (no se usan para persistencia)
+let DB:Apt[] = [];
 
 const SM:Record<string,{l:string;bg:string;c:string;bc:string;dot:string}> = {
   pending:      {l:"Pendiente",   bg:"rgba(250,204,21,.1)",  c:"#fde047",bc:"rgba(250,204,21,.3)", dot:"#fde047"},
@@ -179,7 +168,8 @@ function Booking({onSwitch,profs}:{onSwitch:()=>void;profs:Prof[]}) {
     if(!selProf||!selDate||!selSvc) return;
     const d=dow(selDate); const sched=selProf.schedule.find(s=>s.dow===d);
     if(!sched?.active||!sched.blocks.length){setSlots([]);return;}
-    const ex=DB.filter(a=>a.profId===selProf.id&&a.date===selDate&&a.status!=="cancelled").map(a=>({t:a.time,e:a.end}));
+    // Buscar turnos ocupados en Supabase (simulado por ahora)
+    const ex:{t:string,e:string}[] = [];
     const allSlots:string[]=[];
     sched.blocks.forEach(b=>genSlots(b.start,b.end,selSvc.dur,ex).forEach(sl=>allSlots.push(sl)));
     allSlots.sort();
@@ -209,8 +199,6 @@ function Booking({onSwitch,profs}:{onSwitch:()=>void;profs:Prof[]}) {
       console.error(error);
       alert('Error al guardar el turno');
     } else {
-      // También guardar en DB local para mantener compatibilidad
-      DB.push({id:`a${Date.now()}`,profId:selProf.id,svcId:selSvc.id,date:selDate,time:selTime,end:addMin(selTime,selSvc.dur),status:"pending",client:form.name,phone:form.phone,notes:form.notes});
       setStep("ok");
     }
     setSub(false);
@@ -329,12 +317,12 @@ function Booking({onSwitch,profs}:{onSwitch:()=>void;profs:Prof[]}) {
   );
 }
 
-// ── ADMIN ────────────────────────────────────────────────────────
+// ── ADMIN (con Supabase) ─────────────────────────────────────────
 type AT="turnos"|"servicios"|"horarios"|"reportes";
 
 function Admin({onSwitch}:{onSwitch:()=>void}) {
   const [tab,setTab]=useState<AT>("turnos");
-  const [apts,setApts]=useState([...DB]);
+  const [apts,setApts]=useState<Apt[]>([]);
   const [selDay,setSelDay]=useState(today());
   const [sel,setSel]=useState<Apt|null>(null);
   const [showReschedule,setShowReschedule]=useState(false);
@@ -343,17 +331,58 @@ function Admin({onSwitch}:{onSwitch:()=>void}) {
   const [svcs,setSvcs]=useState(SVCS);
   const [showSF,setShowSF]=useState(false); const [editId,setEditId]=useState<string|null>(null);
   const [sform,setSform]=useState({name:"",desc:"",dur:"60",price:"",cat:"General"});
+  const [loading,setLoading]=useState(true);
+
+  async function loadAppointments() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .order('date', { ascending: false });
+    
+    if (error) {
+      console.error(error);
+    } else if (data) {
+      const converted: Apt[] = data.map((row: any) => {
+        const svc = SVCS.find(s => s.name === row.service_name);
+        return {
+          id: row.id.toString(),
+          profId: row.professional_name === "Valentina Ruiz" ? "p1" : "p2",
+          svcId: svc?.id || "s1",
+          date: row.date,
+          time: row.time,
+          end: addMin(row.time, row.duration_minutes),
+          status: row.status,
+          client: row.client_name,
+          phone: row.client_phone,
+          notes: ""
+        };
+      });
+      setApts(converted);
+    }
+    setLoading(false);
+  }
+
+  async function updateStatus(id: string, newStatus: string) {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ status: newStatus })
+      .eq('id', parseInt(id));
+    
+    if (error) {
+      console.error(error);
+    } else {
+      await loadAppointments();
+    }
+  }
+
+  useEffect(() => {
+    loadAppointments();
+  }, []);
 
   const week=get7Days();
-  function refresh(){setApts([...DB]);}
-  function chSt(id:string,st:string){const a=DB.find(x=>x.id===id);if(a){a.status=st;refresh();setSel({...a,status:st});}}
-  function doReschedule(){
-    if(!sel||!rdDate||!rdTime) return;
-    const a=DB.find(x=>x.id===sel.id); if(!a) return;
-    const svc=SVCS.find(s=>s.id===a.svcId);
-    a.date=rdDate;a.time=rdTime;a.end=addMin(rdTime,svc?.dur??60);a.status="confirmed";
-    refresh();setSel({...a});setShowReschedule(false);
-  }
+  function chSt(id:string,st:string){ updateStatus(id, st); }
+  function doReschedule(){}
   function saveSvc(){
     if(editId)setSvcs(p=>p.map(s=>s.id===editId?{...s,name:sform.name,desc:sform.desc,dur:+sform.dur,price:+sform.price,cat:sform.cat}:s));
     else setSvcs(p=>[...p,{id:`s${Date.now()}`,name:sform.name,desc:sform.desc,dur:+sform.dur,price:+sform.price,cat:sform.cat,active:true}]);
@@ -387,6 +416,8 @@ function Admin({onSwitch}:{onSwitch:()=>void}) {
   const topSvcs=Object.entries(svcRevMap).sort((a,b)=>b[1]-a[1]).slice(0,4);
   const maxSvcRev=topSvcs[0]?.[1]??1;
   const completedApts=apts.filter(a=>a.status==="completed").sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time));
+
+  if (loading) return <div className="text-center p-10">Cargando turnos...</div>;
 
   return (
     <div style={{minHeight:"100dvh",background:"var(--bg)"}}>
@@ -499,7 +530,7 @@ function Admin({onSwitch}:{onSwitch:()=>void}) {
         </div>}
       </div>
       <div className="bnav">{NAV.map(n=>(<button key={n.id} className="nb" onClick={()=>setTab(n.id)}><span style={{fontSize:20}}>{n.icon}</span><span style={{color:tab===n.id?"var(--acc)":"var(--mu)",transition:"color .2s"}}>{n.l}</span></button>))}</div>
-      {sel&&(()=>{const svc=SVCS.find(s=>s.id===sel.svcId); const prof=PROFS_INIT.find(p=>p.id===sel.profId); const sm=SM[sel.status]??SM.pending;return (<div className="ov" onClick={()=>{setSel(null);setShowReschedule(false);}}><div className="sh" onClick={e=>e.stopPropagation()}><div style={{width:36,height:4,borderRadius:999,background:"var(--br)",margin:"0 auto 18px"}}/><div style={{display:"flex",justifyContent:"space-between",marginBottom:14}}><h3 className="ff" style={{fontWeight:700,fontSize:20}}>Turno</h3><span className="tag" style={badge(sm)}>{sm.l}</span></div>{[["Cliente",sel.client],["Teléfono",sel.phone],["Servicio",svc?.name??"-"],["Profesional",prof?.name??"-"],["Fecha",fmtD(sel.date)],["Horario",`${sel.time}–${sel.end}hs`],["Precio",svc?fmtP(svc.price):"-"],...(sel.notes?[["Notas",sel.notes]]:[])].map(([l,v])=>(<div key={String(l)} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid var(--br)"}}><span style={{fontSize:13,color:"var(--mu)"}}>{l}</span><span className={l==="Precio"?"ff":""} style={{fontSize:l==="Precio"?16:13,fontWeight:l==="Precio"?800:600,color:l==="Precio"?"var(--acc)":"var(--tx)",textAlign:"right",maxWidth:"55%"}}>{v}</span></div>))}{showReschedule&&(<div style={{marginTop:14,padding:14,borderRadius:14,background:"rgba(168,85,247,.08)",border:"1px solid rgba(168,85,247,.25)"}}><p className="ff" style={{fontWeight:700,fontSize:13,color:"#c084fc",marginBottom:10}}>📅 Nueva fecha y hora</p><div style={{display:"flex",gap:8}}><input type="date" min={today()} value={rdDate} onChange={e=>setRdDate(e.target.value)} className="ri" style={{flex:1}}/><input type="time" value={rdTime} onChange={e=>setRdTime(e.target.value)} className="ri" style={{flex:1}}/></div><div style={{display:"flex",gap:8,marginTop:10}}><button onClick={doReschedule} disabled={!rdDate||!rdTime} style={{flex:1,padding:"10px 0",borderRadius:10,background:"rgba(168,85,247,.2)",color:"#c084fc",border:"1px solid rgba(168,85,247,.35)",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>Confirmar</button><button onClick={()=>setShowReschedule(false)} style={{padding:"10px 14px",borderRadius:10,background:"rgba(255,255,255,.05)",color:"var(--mu)",border:"1px solid var(--br)",fontSize:13,cursor:"pointer"}}>✕</button></div></div>)}<div style={{display:"flex",flexDirection:"column",gap:8,marginTop:16}}>{sel.status==="pending"&&<><a href={waLink(sel.phone,msgConfirm(sel.client,sel.date,sel.time,svc?.name??""))} onClick={()=>chSt(sel.id,"confirmed")} className="wbtn glow" style={{background:"var(--acc)",color:"var(--bg)"}}>✅ Confirmar y avisar por WPP</a><button onClick={()=>{chSt(sel.id,"rescheduling");setShowReschedule(true)}} style={{padding:"13px 0",borderRadius:14,fontSize:14,cursor:"pointer",background:"rgba(168,85,247,.12)",color:"#c084fc",border:"1px solid rgba(168,85,247,.3)",fontWeight:700,fontFamily:"'Syne',sans-serif",width:"100%"}}>🔄 Mover turno</button><a href={waLink(sel.phone,msgCancel(sel.client,sel.date,sel.time))} onClick={()=>chSt(sel.id,"cancelled")} className="wbtn" style={{background:"rgba(239,68,68,.1)",color:"#f87171",border:"1px solid rgba(239,68,68,.25)"}}>❌ Cancelar y avisar por WPP</a></>}{sel.status==="confirmed"&&<><a href={waLink(sel.phone,msgReminder(sel.client,sel.date,sel.time,svc?.name??""))} className="wbtn glow" style={{background:"var(--acc)",color:"var(--bg)"}}>🔔 Enviar recordatorio WPP</a><button onClick={()=>{chSt(sel.id,"rescheduling");setShowReschedule(true)}} style={{padding:"13px 0",borderRadius:14,fontSize:14,cursor:"pointer",background:"rgba(168,85,247,.12)",color:"#c084fc",border:"1px solid rgba(168,85,247,.3)",fontWeight:700,fontFamily:"'Syne',sans-serif",width:"100%"}}>🔄 Mover turno</button><a href={waLink(sel.phone,msgCancel(sel.client,sel.date,sel.time))} onClick={()=>chSt(sel.id,"cancelled")} className="wbtn" style={{background:"rgba(239,68,68,.1)",color:"#f87171",border:"1px solid rgba(239,68,68,.25)"}}>❌ Cancelar y avisar por WPP</a><button onClick={()=>chSt(sel.id,"completed")} style={{padding:"11px 0",borderRadius:14,fontSize:13,cursor:"pointer",background:"rgba(255,255,255,.05)",color:"var(--mu)",border:"1px solid var(--br)",fontFamily:"'Syne',sans-serif",fontWeight:600,width:"100%"}}>✓ Marcar completado</button></>}{sel.status==="rescheduling"&&<><button onClick={()=>setShowReschedule(true)} style={{padding:"13px 0",borderRadius:14,fontSize:14,cursor:"pointer",background:"rgba(168,85,247,.12)",color:"#c084fc",border:"1px solid rgba(168,85,247,.3)",fontWeight:700,fontFamily:"'Syne',sans-serif",width:"100%"}}>📅 Elegir nueva fecha/hora</button><a href={waLink(sel.phone,msgReschedule(sel.client,sel.date,sel.time))} className="wbtn" style={{background:"rgba(168,85,247,.1)",color:"#c084fc",border:"1px solid rgba(168,85,247,.25)"}}>💬 Avisar reagendamiento WPP</a></>}{(sel.status==="completed"||sel.status==="cancelled")&&<a href={waLink(sel.phone,`¡Hola ${sel.client}! 👋 — ${BIZ.name}`)} className="wbtn" style={{background:"rgba(37,211,102,.08)",color:"#4ade80",border:"1px solid rgba(37,211,102,.2)"}}>💬 Abrir WhatsApp</a>}</div></div></div>);})()}
+      {sel&&(()=>{const svc=SVCS.find(s=>s.id===sel.svcId); const prof=PROFS_INIT.find(p=>p.id===sel.profId); const sm=SM[sel.status]??SM.pending;return (<div className="ov" onClick={()=>{setSel(null);setShowReschedule(false);}}><div className="sh" onClick={e=>e.stopPropagation()}><div style={{width:36,height:4,borderRadius:999,background:"var(--br)",margin:"0 auto 18px"}}/><div style={{display:"flex",justifyContent:"space-between",marginBottom:14}}><h3 className="ff" style={{fontWeight:700,fontSize:20}}>Turno</h3><span className="tag" style={badge(sm)}>{sm.l}</span></div>{[["Cliente",sel.client],["Teléfono",sel.phone],["Servicio",svc?.name??"-"],["Profesional",prof?.name??"-"],["Fecha",fmtD(sel.date)],["Horario",`${sel.time}–${sel.end}hs`],["Precio",svc?fmtP(svc.price):"-"],...(sel.notes?[["Notas",sel.notes]]:[])].map(([l,v])=>(<div key={String(l)} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid var(--br)"}}><span style={{fontSize:13,color:"var(--mu)"}}>{l}</span><span className={l==="Precio"?"ff":""} style={{fontSize:l==="Precio"?16:13,fontWeight:l==="Precio"?800:600,color:l==="Precio"?"var(--acc)":"var(--tx)",textAlign:"right",maxWidth:"55%"}}>{v}</span></div>))}{showReschedule&&(<div style={{marginTop:14,padding:14,borderRadius:14,background:"rgba(168,85,247,.08)",border:"1px solid rgba(168,85,247,.25)"}}><p className="ff" style={{fontWeight:700,fontSize:13,color:"#c084fc",marginBottom:10}}>📅 Nueva fecha y hora</p><div style={{display:"flex",gap:8}}><input type="date" min={today()} value={rdDate} onChange={e=>setRdDate(e.target.value)} className="ri" style={{flex:1}}/><input type="time" value={rdTime} onChange={e=>setRdTime(e.target.value)} className="ri" style={{flex:1}}/></div><div style={{display:"flex",gap:8,marginTop:10}}><button onClick={doReschedule} disabled={!rdDate||!rdTime} style={{flex:1,padding:"10px 0",borderRadius:10,background:"rgba(168,85,247,.2)",color:"#c084fc",border:"1px solid rgba(168,85,247,.35)",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>Confirmar</button><button onClick={()=>setShowReschedule(false)} style={{padding:"10px 14px",borderRadius:10,background:"rgba(255,255,255,.05)",color:"var(--mu)",border:"1px solid var(--br)",fontSize:13,cursor:"pointer"}}>✕</button></div></div>)}<div style={{display:"flex",flexDirection:"column",gap:8,marginTop:16}}>{sel.status==="pending"&&<><a href={waLink(sel.phone,msgConfirm(sel.client,sel.date,sel.time,svc?.name??""))} onClick={()=>{chSt(sel.id,"confirmed"); setSel(null);}} className="wbtn glow" style={{background:"var(--acc)",color:"var(--bg)"}}>✅ Confirmar y avisar por WPP</a><button onClick={()=>{chSt(sel.id,"rescheduling");setShowReschedule(true)}} style={{padding:"13px 0",borderRadius:14,fontSize:14,cursor:"pointer",background:"rgba(168,85,247,.12)",color:"#c084fc",border:"1px solid rgba(168,85,247,.3)",fontWeight:700,fontFamily:"'Syne',sans-serif",width:"100%"}}>🔄 Mover turno</button><a href={waLink(sel.phone,msgCancel(sel.client,sel.date,sel.time))} onClick={()=>{chSt(sel.id,"cancelled"); setSel(null);}} className="wbtn" style={{background:"rgba(239,68,68,.1)",color:"#f87171",border:"1px solid rgba(239,68,68,.25)"}}>❌ Cancelar y avisar por WPP</a></>}{sel.status==="confirmed"&&<><a href={waLink(sel.phone,msgReminder(sel.client,sel.date,sel.time,svc?.name??""))} className="wbtn glow" style={{background:"var(--acc)",color:"var(--bg)"}}>🔔 Enviar recordatorio WPP</a><button onClick={()=>{chSt(sel.id,"rescheduling");setShowReschedule(true)}} style={{padding:"13px 0",borderRadius:14,fontSize:14,cursor:"pointer",background:"rgba(168,85,247,.12)",color:"#c084fc",border:"1px solid rgba(168,85,247,.3)",fontWeight:700,fontFamily:"'Syne',sans-serif",width:"100%"}}>🔄 Mover turno</button><a href={waLink(sel.phone,msgCancel(sel.client,sel.date,sel.time))} onClick={()=>{chSt(sel.id,"cancelled"); setSel(null);}} className="wbtn" style={{background:"rgba(239,68,68,.1)",color:"#f87171",border:"1px solid rgba(239,68,68,.25)"}}>❌ Cancelar y avisar por WPP</a><button onClick={()=>{chSt(sel.id,"completed"); setSel(null);}} style={{padding:"11px 0",borderRadius:14,fontSize:13,cursor:"pointer",background:"rgba(255,255,255,.05)",color:"var(--mu)",border:"1px solid var(--br)",fontFamily:"'Syne',sans-serif",fontWeight:600,width:"100%"}}>✓ Marcar completado</button></>}{sel.status==="rescheduling"&&<><button onClick={()=>setShowReschedule(true)} style={{padding:"13px 0",borderRadius:14,fontSize:14,cursor:"pointer",background:"rgba(168,85,247,.12)",color:"#c084fc",border:"1px solid rgba(168,85,247,.3)",fontWeight:700,fontFamily:"'Syne',sans-serif",width:"100%"}}>📅 Elegir nueva fecha/hora</button><a href={waLink(sel.phone,msgReschedule(sel.client,sel.date,sel.time))} className="wbtn" style={{background:"rgba(168,85,247,.1)",color:"#c084fc",border:"1px solid rgba(168,85,247,.25)"}}>💬 Avisar reagendamiento WPP</a></>}{(sel.status==="completed"||sel.status==="cancelled")&&<a href={waLink(sel.phone,`¡Hola ${sel.client}! 👋 — ${BIZ.name}`)} className="wbtn" style={{background:"rgba(37,211,102,.08)",color:"#4ade80",border:"1px solid rgba(37,211,102,.2)"}}>💬 Abrir WhatsApp</a>}</div></div></div>);})()}
       {showSF&&(<div className="ov" onClick={()=>setShowSF(false)}><div className="sh" onClick={e=>e.stopPropagation()}><div style={{width:36,height:4,borderRadius:999,background:"var(--br)",margin:"0 auto 18px"}}/><h3 className="ff" style={{fontWeight:700,fontSize:20,marginBottom:16}}>{editId?"Editar":"Nuevo"} servicio</h3><div style={{display:"flex",flexDirection:"column",gap:10}}>{[{k:"name",l:"Nombre *",t:"text",ph:"Manicuria Semi"},{k:"desc",l:"Descripción",t:"text",ph:"Desc breve"},{k:"cat",l:"Categoría",t:"text",ph:"Uñas"},{k:"dur",l:"Duración (min)",t:"number",ph:"60"},{k:"price",l:"Precio $",t:"number",ph:"3500"}].map(f=>(<div key={f.k} style={{background:"rgba(255,255,255,.04)",borderRadius:12,padding:"10px 14px",border:"1px solid var(--br)"}}><label style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",color:"var(--mu)",display:"block",marginBottom:4}}>{f.l}</label><input type={f.t} placeholder={f.ph} value={(sform as Record<string,string>)[f.k]} onChange={e=>setSform(p=>({...p,[f.k]:e.target.value}))} style={{width:"100%",background:"transparent",border:"none",color:"var(--tx)",fontSize:14,fontWeight:500,outline:"none"}}/></div>))}</div><button onClick={saveSvc} disabled={!sform.name||!sform.price} className="ab glow" style={{width:"100%",marginTop:14,padding:"13px 0",borderRadius:14,fontSize:14}}>Guardar</button></div></div>)}
     </div>
   );
