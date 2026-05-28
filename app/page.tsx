@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Grotesk:wght@300;400;500;600&display=swap');
@@ -38,7 +39,6 @@ const CSS = `
   .pin-key:active{background:var(--acc);color:var(--bg);transform:scale(.93)}
   .ri{background:rgba(255,255,255,.05);border:1px solid var(--br);border-radius:10px;padding:8px 12px;color:var(--tx);font-size:13px;outline:none;transition:border-color .2s}
   .ri:focus{border-color:var(--acc)}
-  /* Calendar */
   .cal-day{display:flex;flex-direction:column;align-items:center;padding:6px 4px;border-radius:12px;cursor:pointer;transition:all .15s;min-width:40px}
   .cal-day.active{background:var(--acc)}
   .cal-day.has-apt::after{content:'';width:4px;height:4px;border-radius:50%;background:var(--acc);display:block;margin-top:3px}
@@ -48,7 +48,6 @@ const CSS = `
   .apt-line{flex:1;width:1px;background:var(--br);margin-top:4px}
   .apt-card{flex:1;border-radius:14px;padding:12px 14px;border:1px solid var(--br);background:var(--sf);transition:all .2s}
   .apt-card:hover{border-color:var(--acc);background:rgba(255,255,255,.04)}
-  /* Toggle switch */
   .toggle{position:relative;width:44px;height:24px;flex-shrink:0}
   .toggle input{opacity:0;width:0;height:0;position:absolute}
   .slider{position:absolute;inset:0;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid var(--br);cursor:pointer;transition:.2s}
@@ -187,13 +186,36 @@ function Booking({onSwitch,profs}:{onSwitch:()=>void;profs:Prof[]}) {
     setSlots(allSlots);
   },[selProf,selDate,selSvc]);
 
-  function submit(){
-    if(!selSvc||!selProf||!selDate||!selTime) return; setSub(true);
-    setTimeout(()=>{
+  async function submit(){
+    if(!selSvc||!selProf||!selDate||!selTime) return;
+    setSub(true);
+    
+    // Guardar en Supabase
+    const { error } = await supabase
+      .from('appointments')
+      .insert({
+        client_name: form.name,
+        client_phone: form.phone,
+        service_name: selSvc.name,
+        professional_name: selProf.name,
+        date: selDate,
+        time: selTime,
+        duration_minutes: selSvc.dur,
+        price: selSvc.price,
+        status: 'pending'
+      });
+    
+    if (error) {
+      console.error(error);
+      alert('Error al guardar el turno');
+    } else {
+      // También guardar en DB local para mantener compatibilidad
       DB.push({id:`a${Date.now()}`,profId:selProf.id,svcId:selSvc.id,date:selDate,time:selTime,end:addMin(selTime,selSvc.dur),status:"pending",client:form.name,phone:form.phone,notes:form.notes});
-      setStep("ok"); setSub(false);
-    },800);
+      setStep("ok");
+    }
+    setSub(false);
   }
+
   const ci=BSTEPS.indexOf(step);
   return (
     <div className="gbg" style={{minHeight:"100dvh",background:"var(--bg)"}}>
@@ -267,7 +289,7 @@ function Booking({onSwitch,profs}:{onSwitch:()=>void;profs:Prof[]}) {
                 {slots.map(sl=><button key={sl} onClick={()=>setTime(sl)} className={selTime===sl?"glow":""} style={{padding:"10px 0",borderRadius:12,fontSize:13,fontFamily:"'Syne',sans-serif",fontWeight:700,cursor:"pointer",transition:"all .15s",background:selTime===sl?"var(--acc)":"rgba(255,255,255,.04)",color:selTime===sl?"var(--bg)":"var(--tx)",border:`1px solid ${selTime===sl?"var(--acc)":"var(--br)"}`}}>{sl}</button>)}
               </div>}
           </div>}
-          {selTime&&<button onClick={()=>setStep("form")} className="ab glow fu" style={{width:"100%",marginTop:14,padding:"15px 0",borderRadius:16,fontSize:14}}>Continuar →</button>}
+          {selTime&&<button onClick={()=>setStep("form")} className="ab glow fu" style={{width:"100%",marginTop:14,padding:"15px 0",borderRadius:16,fontSize:14}}>Continuar →</button>
         </div>}
         {step==="form"&&<div className="fu">
           <button onClick={()=>setStep("dt")} style={{fontSize:12,color:"var(--mu)",marginBottom:12,cursor:"pointer",background:"none",border:"none"}}>← Volver</button>
