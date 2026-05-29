@@ -112,7 +112,14 @@ const msgConfirm = (cl: string, d: string, t: string, sv: string) => `¡Hola ${c
 const msgCancel = (cl: string, d: string, t: string) => `¡Hola ${cl}! 😔\n\nTuvimos que cancelar tu turno del *${fmtD(d)}* a las *${t}hs*.\n\nEscribinos para reagendar 🙏\n— ${BIZ.name}`;
 const msgReschedule = (cl: string, d: string, t: string) => `¡Hola ${cl}! 📅\n\nNecesitamos mover tu turno del *${fmtD(d)}* a las *${t}hs*.\n\n¿Podés escribirnos para coordinar? 🌸\n— ${BIZ.name}`;
 const msgReminder = (cl: string, d: string, t: string, sv: string) => `¡Hola ${cl}! 👋\n\nTe recordamos tu turno de mañana:\n\n📅 *${fmtD(d)}*\n🕐 *${t}hs*\n💅 *${sv}*\n📍 ${BIZ.addr}\n\n¡Te esperamos! 🌸 — ${BIZ.name}`;
-const waLink = (ph: string, msg: string) => `https://wa.me/${ph.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`;
+
+const waLink = (ph: string, msg: string) => {
+  let cleanPhone = ph.replace(/\D/g, "");
+  if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+    cleanPhone = "54" + cleanPhone;
+  }
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+};
 
 type Apt = { id: string; profId: string; svcId: string; date: string; time: string; end: string; status: string; client: string; phone: string; notes: string };
 
@@ -162,7 +169,7 @@ function Booking({ onSwitch, profs }: { onSwitch: () => void; profs: Prof[] }) {
   const [selProf, setProf] = useState<Prof | null>(null);
   const [selDate, setDate] = useState(""); const [selTime, setTime] = useState("");
   const [slots, setSlots] = useState<string[]>([]);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", notes: "" });
+  const [form, setForm] = useState({ name: "", phone: "" });
   const [sub, setSub] = useState(false);
   const activeSvcs = SVCS.filter(s => s.active);
 
@@ -170,16 +177,52 @@ function Booking({ onSwitch, profs }: { onSwitch: () => void; profs: Prof[] }) {
     if (!selProf || !selDate || !selSvc) return;
     const d = dow(selDate); const sched = selProf.schedule.find(s => s.dow === d);
     if (!sched?.active || !sched.blocks.length) { setSlots([]); return; }
-    const ex: { t: string; e: string }[] = [];
-    const allSlots: string[] = [];
-    sched.blocks.forEach(b => genSlots(b.start, b.end, selSvc.dur, ex).forEach(sl => allSlots.push(sl)));
-    allSlots.sort();
-    setSlots(allSlots);
+    
+    // Cargar turnos ocupados para ese día y profesional
+    supabase
+      .from('appointments')
+      .select('time')
+      .eq('professional_name', selProf.name)
+      .eq('date', selDate)
+      .neq('status', 'cancelled')
+      .then(({ data }) => {
+        const occupied = data?.map(a => ({ t: a.time, e: addMin(a.time, selSvc.dur) })) || [];
+        const allSlots: string[] = [];
+        sched.blocks.forEach(b => {
+          genSlots(b.start, b.end, selSvc.dur, occupied).forEach(sl => allSlots.push(sl));
+        });
+        allSlots.sort();
+        setSlots(allSlots);
+      });
   }, [selProf, selDate, selSvc]);
 
   async function submit() {
     if (!selSvc || !selProf || !selDate || !selTime) return;
     setSub(true);
+    
+    // Verificar si ya existe un turno en ese horario
+    const { data: existing, error: checkError } = await supabase
+      .from('appointments')
+      .select('id')
+      .eq('professional_name', selProf.name)
+      .eq('date', selDate)
+      .eq('time', selTime)
+      .neq('status', 'cancelled');
+    
+    if (checkError) {
+      console.error(checkError);
+      alert('Error al verificar disponibilidad');
+      setSub(false);
+      return;
+    }
+    
+    if (existing && existing.length > 0) {
+      alert('❌ Este horario ya está ocupado. Elegí otro turno.');
+      setSub(false);
+      return;
+    }
+    
+    // Guardar turno
     const { error } = await supabase
       .from('appointments')
       .insert({
@@ -193,6 +236,7 @@ function Booking({ onSwitch, profs }: { onSwitch: () => void; profs: Prof[] }) {
         price: selSvc.price,
         status: 'pending'
       });
+    
     if (error) {
       console.error(error);
       alert('Error al guardar el turno');
@@ -286,12 +330,14 @@ function Booking({ onSwitch, profs }: { onSwitch: () => void; profs: Prof[] }) {
             <p className="ff" style={{ fontWeight: 800, fontSize: 22, color: "var(--acc)", marginTop: 8 }}>{selSvc && fmtP(selSvc.price)}</p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {[{ k: "name", l: "Nombre *", t: "text", ph: "María García" }, { k: "phone", l: "WhatsApp *", t: "tel", ph: "+54 11 1234-5678" }, { k: "email", l: "Email", t: "email", ph: "tu@email.com" }, { k: "notes", l: "Notas", t: "text", ph: "Indicaciones..." }].map(f => (
-              <div key={f.k} className="sf" style={{ borderRadius: 14, padding: "11px 14px" }}>
-                <label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--mu)", display: "block", marginBottom: 4 }}>{f.l}</label>
-                <input type={f.t} placeholder={f.ph} value={(form as Record<string, string>)[f.k]} onChange={e => setForm(p => ({ ...p, [f.k]: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: "var(--tx)", fontSize: 14, fontWeight: 500, outline: "none" }} />
-              </div>
-            ))}
+            <div className="sf" style={{ borderRadius: 14, padding: "11px 14px" }}>
+              <label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--mu)", display: "block", marginBottom: 4 }}>Nombre *</label>
+              <input type="text" placeholder="María García" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: "var(--tx)", fontSize: 14, fontWeight: 500, outline: "none" }} />
+            </div>
+            <div className="sf" style={{ borderRadius: 14, padding: "11px 14px" }}>
+              <label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--mu)", display: "block", marginBottom: 4 }}>WhatsApp (sin 54, solo tu número) *</label>
+              <input type="tel" placeholder="11 4444 5555" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: "var(--tx)", fontSize: 14, fontWeight: 500, outline: "none" }} />
+            </div>
           </div>
           <button onClick={submit} disabled={!form.name || !form.phone || sub} className="ab glow" style={{ width: "100%", marginTop: 16, padding: "15px 0", borderRadius: 16, fontSize: 14 }}>{sub ? "Reservando..." : "✓ Confirmar reserva"}</button>
         </div>}
@@ -308,7 +354,7 @@ function Booking({ onSwitch, profs }: { onSwitch: () => void; profs: Prof[] }) {
             ))}
           </div>
           <a href={`https://wa.me/${BIZ.phone}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "13px 0", borderRadius: 16, background: "#25D366", color: "white", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>💬 Consultar por WhatsApp</a>
-          <button onClick={() => { setStep("svc"); setSvc(null); setProf(null); setDate(""); setTime(""); setForm({ name: "", phone: "", email: "", notes: "" }) }} style={{ marginTop: 12, fontSize: 12, color: "var(--mu)", background: "none", border: "none", cursor: "pointer" }}>Nueva reserva</button>
+          <button onClick={() => { setStep("svc"); setSvc(null); setProf(null); setDate(""); setTime(""); setForm({ name: "", phone: "" }) }} style={{ marginTop: 12, fontSize: 12, color: "var(--mu)", background: "none", border: "none", cursor: "pointer" }}>Nueva reserva</button>
         </div>}
       </div>
     </div>
@@ -529,7 +575,7 @@ function Admin({ onSwitch }: { onSwitch: () => void }) {
         </div>}
       </div>
       <div className="bnav">{NAV.map(n => (<button key={n.id} className="nb" onClick={() => setTab(n.id)}><span style={{ fontSize: 20 }}>{n.icon}</span><span style={{ color: tab === n.id ? "var(--acc)" : "var(--mu)", transition: "color .2s" }}>{n.l}</span></button>))}</div>
-      {sel && (() => { const svc = SVCS.find(s => s.id === sel.svcId); const prof = PROFS_INIT.find(p => p.id === sel.profId); const sm = SM[sel.status] ?? SM.pending; return (<div className="ov" onClick={() => { setSel(null); setShowReschedule(false); }}><div className="sh" onClick={e => e.stopPropagation()}><div style={{ width: 36, height: 4, borderRadius: 999, background: "var(--br)", margin: "0 auto 18px" }} /><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}><h3 className="ff" style={{ fontWeight: 700, fontSize: 20 }}>Turno</h3><span className="tag" style={badge(sm)}>{sm.l}</span></div>{[["Cliente", sel.client], ["Teléfono", sel.phone], ["Servicio", svc?.name ?? "-"], ["Profesional", prof?.name ?? "-"], ["Fecha", fmtD(sel.date)], ["Horario", `${sel.time}–${sel.end}hs`], ["Precio", svc ? fmtP(svc.price) : "-"], ...(sel.notes ? [["Notas", sel.notes]] : [])].map(([l, v]) => (<div key={String(l)} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid var(--br)" }}><span style={{ fontSize: 13, color: "var(--mu)" }}>{l}</span><span className={l === "Precio" ? "ff" : ""} style={{ fontSize: l === "Precio" ? 16 : 13, fontWeight: l === "Precio" ? 800 : 600, color: l === "Precio" ? "var(--acc)" : "var(--tx)", textAlign: "right", maxWidth: "55%" }}>{v}</span></div>))}{showReschedule && (<div style={{ marginTop: 14, padding: 14, borderRadius: 14, background: "rgba(168,85,247,.08)", border: "1px solid rgba(168,85,247,.25)" }}><p className="ff" style={{ fontWeight: 700, fontSize: 13, color: "#c084fc", marginBottom: 10 }}>📅 Nueva fecha y hora</p><div style={{ display: "flex", gap: 8 }}><input type="date" min={today()} value={rdDate} onChange={e => setRdDate(e.target.value)} className="ri" style={{ flex: 1 }} /><input type="time" value={rdTime} onChange={e => setRdTime(e.target.value)} className="ri" style={{ flex: 1 }} /></div><div style={{ display: "flex", gap: 8, marginTop: 10 }}><button onClick={doReschedule} disabled={!rdDate || !rdTime} style={{ flex: 1, padding: "10px 0", borderRadius: 10, background: "rgba(168,85,247,.2)", color: "#c084fc", border: "1px solid rgba(168,85,247,.35)", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Syne',sans-serif" }}>Confirmar</button><button onClick={() => setShowReschedule(false)} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,.05)", color: "var(--mu)", border: "1px solid var(--br)", fontSize: 13, cursor: "pointer" }}>✕</button></div></div>)}<div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>{sel.status === "pending" && <><a href={waLink(sel.phone, msgConfirm(sel.client, sel.date, sel.time, svc?.name ?? ""))} onClick={() => { chSt(sel.id, "confirmed"); setSel(null); }} className="wbtn glow" style={{ background: "var(--acc)", color: "var(--bg)" }}>✅ Confirmar y avisar por WPP</a><button onClick={() => { chSt(sel.id, "rescheduling"); setShowReschedule(true) }} style={{ padding: "13px 0", borderRadius: 14, fontSize: 14, cursor: "pointer", background: "rgba(168,85,247,.12)", color: "#c084fc", border: "1px solid rgba(168,85,247,.3)", fontWeight: 700, fontFamily: "'Syne',sans-serif", width: "100%" }}>🔄 Mover turno</button><a href={waLink(sel.phone, msgCancel(sel.client, sel.date, sel.time))} onClick={() => { chSt(sel.id, "cancelled"); setSel(null); }} className="wbtn" style={{ background: "rgba(239,68,68,.1)", color: "#f87171", border: "1px solid rgba(239,68,68,.25)" }}>❌ Cancelar y avisar por WPP</a></>}{sel.status === "confirmed" && <><a href={waLink(sel.phone, msgReminder(sel.client, sel.date, sel.time, svc?.name ?? ""))} className="wbtn glow" style={{ background: "var(--acc)", color: "var(--bg)" }}>🔔 Enviar recordatorio WPP</a><button onClick={() => { chSt(sel.id, "rescheduling"); setShowReschedule(true) }} style={{ padding: "13px 0", borderRadius: 14, fontSize: 14, cursor: "pointer", background: "rgba(168,85,247,.12)", color: "#c084fc", border: "1px solid rgba(168,85,247,.3)", fontWeight: 700, fontFamily: "'Syne',sans-serif", width: "100%" }}>🔄 Mover turno</button><a href={waLink(sel.phone, msgCancel(sel.client, sel.date, sel.time))} onClick={() => { chSt(sel.id, "cancelled"); setSel(null); }} className="wbtn" style={{ background: "rgba(239,68,68,.1)", color: "#f87171", border: "1px solid rgba(239,68,68,.25)" }}>❌ Cancelar y avisar por WPP</a><button onClick={() => { chSt(sel.id, "completed"); setSel(null); }} style={{ padding: "11px 0", borderRadius: 14, fontSize: 13, cursor: "pointer", background: "rgba(255,255,255,.05)", color: "var(--mu)", border: "1px solid var(--br)", fontFamily: "'Syne',sans-serif", fontWeight: 600, width: "100%" }}>✓ Marcar completado</button></>}{sel.status === "rescheduling" && <><button onClick={() => setShowReschedule(true)} style={{ padding: "13px 0", borderRadius: 14, fontSize: 14, cursor: "pointer", background: "rgba(168,85,247,.12)", color: "#c084fc", border: "1px solid rgba(168,85,247,.3)", fontWeight: 700, fontFamily: "'Syne',sans-serif", width: "100%" }}>📅 Elegir nueva fecha/hora</button><a href={waLink(sel.phone, msgReschedule(sel.client, sel.date, sel.time))} className="wbtn" style={{ background: "rgba(168,85,247,.1)", color: "#c084fc", border: "1px solid rgba(168,85,247,.25)" }}>💬 Avisar reagendamiento WPP</a></>}{(sel.status === "completed" || sel.status === "cancelled") && <a href={waLink(sel.phone, `¡Hola ${sel.client}! 👋 — ${BIZ.name}`)} className="wbtn" style={{ background: "rgba(37,211,102,.08)", color: "#4ade80", border: "1px solid rgba(37,211,102,.2)" }}>💬 Abrir WhatsApp</a>}</div></div></div>); })()}
+      {sel && (() => { const svc = SVCS.find(s => s.id === sel.svcId); const prof = PROFS_INIT.find(p => p.id === sel.profId); const sm = SM[sel.status] ?? SM.pending; return (<div className="ov" onClick={() => { setSel(null); setShowReschedule(false); }}><div className="sh" onClick={e => e.stopPropagation()}><div style={{ width: 36, height: 4, borderRadius: 999, background: "var(--br)", margin: "0 auto 18px" }} /><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}><h3 className="ff" style={{ fontWeight: 700, fontSize: 20 }}>Turno</h3><span className="tag" style={badge(sm)}>{sm.l}</span></div>{[["Cliente", sel.client], ["Teléfono", sel.phone], ["Servicio", svc?.name ?? "-"], ["Profesional", prof?.name ?? "-"], ["Fecha", fmtD(sel.date)], ["Horario", `${sel.time}–${sel.end}hs`], ["Precio", svc ? fmtP(svc.price) : "-"]].map(([l, v]) => (<div key={String(l)} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid var(--br)" }}><span style={{ fontSize: 13, color: "var(--mu)" }}>{l}</span><span className={l === "Precio" ? "ff" : ""} style={{ fontSize: l === "Precio" ? 16 : 13, fontWeight: l === "Precio" ? 800 : 600, color: l === "Precio" ? "var(--acc)" : "var(--tx)", textAlign: "right", maxWidth: "55%" }}>{v}</span></div>))}{showReschedule && (<div style={{ marginTop: 14, padding: 14, borderRadius: 14, background: "rgba(168,85,247,.08)", border: "1px solid rgba(168,85,247,.25)" }}><p className="ff" style={{ fontWeight: 700, fontSize: 13, color: "#c084fc", marginBottom: 10 }}>📅 Nueva fecha y hora</p><div style={{ display: "flex", gap: 8 }}><input type="date" min={today()} value={rdDate} onChange={e => setRdDate(e.target.value)} className="ri" style={{ flex: 1 }} /><input type="time" value={rdTime} onChange={e => setRdTime(e.target.value)} className="ri" style={{ flex: 1 }} /></div><div style={{ display: "flex", gap: 8, marginTop: 10 }}><button onClick={doReschedule} disabled={!rdDate || !rdTime} style={{ flex: 1, padding: "10px 0", borderRadius: 10, background: "rgba(168,85,247,.2)", color: "#c084fc", border: "1px solid rgba(168,85,247,.35)", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Syne',sans-serif" }}>Confirmar</button><button onClick={() => setShowReschedule(false)} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,.05)", color: "var(--mu)", border: "1px solid var(--br)", fontSize: 13, cursor: "pointer" }}>✕</button></div></div>)}<div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>{sel.status === "pending" && <><a href={waLink(sel.phone, msgConfirm(sel.client, sel.date, sel.time, svc?.name ?? ""))} onClick={() => { chSt(sel.id, "confirmed"); setSel(null); }} className="wbtn glow" style={{ background: "var(--acc)", color: "var(--bg)" }}>✅ Confirmar y avisar por WPP</a><button onClick={() => { chSt(sel.id, "rescheduling"); setShowReschedule(true) }} style={{ padding: "13px 0", borderRadius: 14, fontSize: 14, cursor: "pointer", background: "rgba(168,85,247,.12)", color: "#c084fc", border: "1px solid rgba(168,85,247,.3)", fontWeight: 700, fontFamily: "'Syne',sans-serif", width: "100%" }}>🔄 Mover turno</button><a href={waLink(sel.phone, msgCancel(sel.client, sel.date, sel.time))} onClick={() => { chSt(sel.id, "cancelled"); setSel(null); }} className="wbtn" style={{ background: "rgba(239,68,68,.1)", color: "#f87171", border: "1px solid rgba(239,68,68,.25)" }}>❌ Cancelar y avisar por WPP</a></>}{sel.status === "confirmed" && <><a href={waLink(sel.phone, msgReminder(sel.client, sel.date, sel.time, svc?.name ?? ""))} className="wbtn glow" style={{ background: "var(--acc)", color: "var(--bg)" }}>🔔 Enviar recordatorio WPP</a><button onClick={() => { chSt(sel.id, "rescheduling"); setShowReschedule(true) }} style={{ padding: "13px 0", borderRadius: 14, fontSize: 14, cursor: "pointer", background: "rgba(168,85,247,.12)", color: "#c084fc", border: "1px solid rgba(168,85,247,.3)", fontWeight: 700, fontFamily: "'Syne',sans-serif", width: "100%" }}>🔄 Mover turno</button><a href={waLink(sel.phone, msgCancel(sel.client, sel.date, sel.time))} onClick={() => { chSt(sel.id, "cancelled"); setSel(null); }} className="wbtn" style={{ background: "rgba(239,68,68,.1)", color: "#f87171", border: "1px solid rgba(239,68,68,.25)" }}>❌ Cancelar y avisar por WPP</a><button onClick={() => { chSt(sel.id, "completed"); setSel(null); }} style={{ padding: "11px 0", borderRadius: 14, fontSize: 13, cursor: "pointer", background: "rgba(255,255,255,.05)", color: "var(--mu)", border: "1px solid var(--br)", fontFamily: "'Syne',sans-serif", fontWeight: 600, width: "100%" }}>✓ Marcar completado</button></>}{sel.status === "rescheduling" && <><button onClick={() => setShowReschedule(true)} style={{ padding: "13px 0", borderRadius: 14, fontSize: 14, cursor: "pointer", background: "rgba(168,85,247,.12)", color: "#c084fc", border: "1px solid rgba(168,85,247,.3)", fontWeight: 700, fontFamily: "'Syne',sans-serif", width: "100%" }}>📅 Elegir nueva fecha/hora</button><a href={waLink(sel.phone, msgReschedule(sel.client, sel.date, sel.time))} className="wbtn" style={{ background: "rgba(168,85,247,.1)", color: "#c084fc", border: "1px solid rgba(168,85,247,.25)" }}>💬 Avisar reagendamiento WPP</a></>}{(sel.status === "completed" || sel.status === "cancelled") && <a href={waLink(sel.phone, `¡Hola ${sel.client}! 👋 — ${BIZ.name}`)} className="wbtn" style={{ background: "rgba(37,211,102,.08)", color: "#4ade80", border: "1px solid rgba(37,211,102,.2)" }}>💬 Abrir WhatsApp</a>}</div></div></div>);})()}
       {showSF && (<div className="ov" onClick={() => setShowSF(false)}><div className="sh" onClick={e => e.stopPropagation()}><div style={{ width: 36, height: 4, borderRadius: 999, background: "var(--br)", margin: "0 auto 18px" }} /><h3 className="ff" style={{ fontWeight: 700, fontSize: 20, marginBottom: 16 }}>{editId ? "Editar" : "Nuevo"} servicio</h3><div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[{ k: "name", l: "Nombre *", t: "text", ph: "Manicuria Semi" }, { k: "desc", l: "Descripción", t: "text", ph: "Desc breve" }, { k: "cat", l: "Categoría", t: "text", ph: "Uñas" }, { k: "dur", l: "Duración (min)", t: "number", ph: "60" }, { k: "price", l: "Precio $", t: "number", ph: "3500" }].map(f => (<div key={f.k} style={{ background: "rgba(255,255,255,.04)", borderRadius: 12, padding: "10px 14px", border: "1px solid var(--br)" }}><label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--mu)", display: "block", marginBottom: 4 }}>{f.l}</label><input type={f.t} placeholder={f.ph} value={(sform as Record<string, string>)[f.k]} onChange={e => setSform(p => ({ ...p, [f.k]: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: "var(--tx)", fontSize: 14, fontWeight: 500, outline: "none" }} /></div>))}</div><button onClick={saveSvc} disabled={!sform.name || !sform.price} className="ab glow" style={{ width: "100%", marginTop: 14, padding: "13px 0", borderRadius: 14, fontSize: 14 }}>Guardar</button></div></div>)}
     </div>
   );
