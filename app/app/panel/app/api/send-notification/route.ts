@@ -1,0 +1,8 @@
+import { NextResponse } from "next/server";
+
+export async function POST(req: Request) {
+  const { clientName, clientPhone, service, date, time, ownerPhone } = await req.json();
+  const message = `📅 *NUEVO TURNO*\n\nCliente: ${clientName}\nWhatsApp: ${clientPhone}\nServicio: ${service}\nFecha: ${date}\nHora: ${time}\n📍 Cairo 83, Monte Grande`;
+  const waUrl = `https://wa.me/${ownerPhone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;
+  return NextResponse.json({ waUrl });
+}
