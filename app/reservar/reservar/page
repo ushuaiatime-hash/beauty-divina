@@ -10,7 +10,6 @@ const CSS = `
   .ff{font-family:'Syne',sans-serif}
   .sf{background:var(--sf);border:1px solid var(--br)}
   .ab{background:var(--acc);color:var(--bg);font-weight:800;cursor:pointer;border:none}
-  .ab:active{transform:scale(.97)}
   .tag{display:inline-flex;padding:2px 10px;border-radius:999px;font-size:.67rem;border:1px solid}
   .sdot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid var(--br)}
   .sdot.act{background:var(--acc);color:var(--bg)}
@@ -21,8 +20,7 @@ const BIZ = {
   desc: "Salón de belleza & estética premium 💅", 
   phone: "541164475239", 
   addr: "Cairo 83, Monte Grande", 
-  ownerEmail: "tudueno@email.com", // CAMBIAR
-  ownerPhone: "541164475239" // CAMBIAR
+  ownerPhone: "541164475239"
 };
 
 type Prof = { id: string; name: string; spec: string; ini: string; schedule: any[] };
@@ -72,15 +70,9 @@ function genSlots(s: string, e: string, dur: number, occupied: { t: string; e: s
 }
 
 async function sendNotification(clientName: string, clientPhone: string, service: string, date: string, time: string) {
-  const message = `📅 *NUEVO TURNO*\n\nCliente: ${clientName}\nWhatsApp: ${clientPhone}\nServicio: ${service}\nFecha: ${fmtD(date)}\nHora: ${time}hs\n\n📍 ${BIZ.addr}`;
-  const waUrl = waLink(BIZ.ownerPhone, message);
-  window.open(waUrl, "_blank");
-}
-
-async function sendReminder(phone: string, clientName: string, date: string, time: string, service: string) {
-  const message = `👋 Hola ${clientName}! Te recordamos que mañana tienes tu turno:\n\n📅 ${fmtD(date)}\n🕐 ${time}hs\n💅 ${service}\n📍 ${BIZ.addr}\n\n¡Te esperamos! 🌸`;
-  const url = waLink(phone, message);
-  setTimeout(() => window.open(url, "_blank"), 1000);
+  const message = `📅 NUEVO TURNO\n\nCliente: ${clientName}\nWhatsApp: ${clientPhone}\nServicio: ${service}\nFecha: ${fmtD(date)}\nHora: ${time}hs\n📍 ${BIZ.addr}`;
+  const url = waLink(BIZ.ownerPhone, message);
+  window.open(url, "_blank");
 }
 
 function Booking() {
@@ -182,7 +174,7 @@ function Booking() {
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <style>{CSS}</style>
       <header style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
-        <button onClick={() => setStep(1)}>← Volver</button>
+        <button onClick={() => setStep(1)} style={{ background: "none", border: "none", color: "var(--mu)", fontSize: 12, cursor: "pointer" }}>← Volver</button>
         <h1 className="ff" style={{ fontSize: 22, fontWeight: 800 }}>{BIZ.name}</h1>
       </header>
       <div style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
@@ -203,7 +195,7 @@ function Booking() {
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <style>{CSS}</style>
       <header style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
-        <button onClick={() => setStep(2)}>← Volver</button>
+        <button onClick={() => setStep(2)} style={{ background: "none", border: "none", color: "var(--mu)", fontSize: 12, cursor: "pointer" }}>← Volver</button>
         <h1 className="ff" style={{ fontSize: 22, fontWeight: 800 }}>{BIZ.name}</h1>
       </header>
       <div style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
@@ -228,7 +220,7 @@ function Booking() {
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <style>{CSS}</style>
       <header style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
-        <button onClick={() => setStep(3)}>← Volver</button>
+        <button onClick={() => setStep(3)} style={{ background: "none", border: "none", color: "var(--mu)", fontSize: 12, cursor: "pointer" }}>← Volver</button>
         <h1 className="ff" style={{ fontSize: 22, fontWeight: 800 }}>{BIZ.name}</h1>
       </header>
       <div style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
