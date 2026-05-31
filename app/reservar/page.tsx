@@ -15,39 +15,28 @@ const CSS = `
 
 const BIZ = { 
   name: "Beauty Divina Turnos", 
-  desc: "Sal√≥n de belleza & est√©tica premium üíÖ", 
+  desc: "SalÛn de belleza & estÈtica premium ??", 
   phone: "541164475239", 
   addr: "Cairo 83, Monte Grande", 
   ownerPhone: "541164475239"
 };
 
 const PROFS_INIT = [
-  { id: "p1", name: "Milagros Dominguez", spec: "U√±as & Pedicura", ini: "MD" },
-  { id: "p2", name: "Micaela Gomez", spec: "Cosmetolog√≠a", ini: "MG" },
+  { id: "p1", name: "Milagros Dominguez", spec: "UÒas & Pedicura", ini: "MD" },
+  { id: "p2", name: "Micaela Gomez", spec: "CosmetologÌa", ini: "MG" },
 ];
 
 const SVCS = [
-  { id: "s1", name: "Manicuria Semipermanente", desc: "Esmaltado semi + dise√±o", dur: 60, price: 3500, cat: "U√±as", active: true },
-  { id: "s2", name: "Pedicur√≠a Completa", desc: "Tratamiento completo", dur: 75, price: 4200, cat: "U√±as", active: true },
-  { id: "s3", name: "Limpieza Facial Profunda", desc: "Limpieza + hidrataci√≥n", dur: 90, price: 6500, cat: "Facial", active: true },
-  { id: "s4", name: "Depilaci√≥n Piernas", desc: "Cera fr√≠a premium", dur: 50, price: 3000, cat: "Depilaci√≥n", active: true },
+  { id: "s1", name: "Manicuria Semipermanente", desc: "Esmaltado semi + diseÒo", dur: 60, price: 3500, cat: "UÒas", active: true },
+  { id: "s2", name: "PedicurÌa Completa", desc: "Tratamiento completo", dur: 75, price: 4200, cat: "UÒas", active: true },
+  { id: "s3", name: "Limpieza Facial Profunda", desc: "Limpieza + hidrataciÛn", dur: 90, price: 6500, cat: "Facial", active: true },
+  { id: "s4", name: "DepilaciÛn Piernas", desc: "Cera frÌa premium", dur: 50, price: 3000, cat: "DepilaciÛn", active: true },
 ];
 
 const today = () => new Date().toISOString().split("T")[0];
 const addDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().split("T")[0]; };
 const fmtP = (n: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n);
 const fmtD = (d: string) => { const f = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long" }).format(new Date(d + "T00:00:00")); return f.charAt(0).toUpperCase() + f.slice(1); };
-
-const waLink = (ph: string, msg: string) => {
-  let clean = ph.replace(/\D/g, "");
-  if (clean.length === 10 || clean.length === 11) clean = "54" + clean;
-  return `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
-};
-
-async function sendNotification(clientName: string, clientPhone: string, service: string, date: string, time: string) {
-  const message = `üìÖ NUEVO TURNO\n\nCliente: ${clientName}\nWhatsApp: ${clientPhone}\nServicio: ${service}\nFecha: ${fmtD(date)}\nHora: ${time}hs\nüìç ${BIZ.addr}`;
-  window.open(waLink(BIZ.ownerPhone, message), "_blank");
-}
 
 function Booking() {
   const [step, setStep] = useState(1);
@@ -63,7 +52,6 @@ function Booking() {
   async function submit() {
     if (!selSvc || !selProf || !selDate || !selTime || !name || !phone) return;
     setSub(true);
-
     const cancelToken = Math.random().toString(36).slice(2, 15);
     const { error } = await supabase.from("appointments").insert({
       client_name: name,
@@ -77,11 +65,9 @@ function Booking() {
       status: "pending",
       cancel_token: cancelToken
     });
-
     if (error) {
       alert("Error al guardar");
     } else {
-      await sendNotification(name, phone, selSvc.name, selDate, selTime);
       setStep(4);
     }
     setSub(false);
@@ -90,13 +76,13 @@ function Booking() {
   if (step === 1) return (
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <style>{CSS}</style>
-      <header style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
+      <div style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
         <h1 className="ff" style={{ fontSize: 26, fontWeight: 800 }}>{BIZ.name}</h1>
         <p style={{ fontSize: 12, color: "var(--mu)" }}>{BIZ.desc}</p>
-        <p style={{ fontSize: 11, color: "var(--mu)" }}>üìç {BIZ.addr}</p>
-      </header>
+        <p style={{ fontSize: 11, color: "var(--mu)" }}>?? {BIZ.addr}</p>
+      </div>
       <div style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
-        <h2 className="ff" style={{ fontSize: 19, fontWeight: 700, marginBottom: 14 }}>¬øQu√© servicio?</h2>
+        <h2 className="ff" style={{ fontSize: 19, fontWeight: 700, marginBottom: 14 }}>øQuÈ servicio?</h2>
         {activeSvcs.map(s => (
           <div key={s.id} onClick={() => { setSvc(s); setStep(2); }} className="sf" style={{ borderRadius: 16, padding: 14, marginBottom: 10, cursor: "pointer" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -112,12 +98,12 @@ function Booking() {
   if (step === 2) return (
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <style>{CSS}</style>
-      <header style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
-        <button onClick={() => setStep(1)} style={{ background: "none", border: "none", color: "var(--mu)", cursor: "pointer" }}>‚Üê Volver</button>
+      <div style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
+        <button onClick={() => setStep(1)} style={{ background: "none", border: "none", color: "var(--mu)", cursor: "pointer" }}>? Volver</button>
         <h1 className="ff" style={{ fontSize: 22, fontWeight: 800 }}>{BIZ.name}</h1>
-      </header>
+      </div>
       <div style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
-        <h2 className="ff" style={{ fontSize: 19, fontWeight: 700, marginBottom: 14 }}>¬øCon qui√©n?</h2>
+        <h2 className="ff" style={{ fontSize: 19, fontWeight: 700, marginBottom: 14 }}>øCon quiÈn?</h2>
         {PROFS_INIT.map(p => (
           <div key={p.id} onClick={() => { setProf(p); setStep(3); }} className="sf" style={{ borderRadius: 16, padding: 14, marginBottom: 10, cursor: "pointer" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -133,15 +119,31 @@ function Booking() {
   if (step === 3) return (
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <style>{CSS}</style>
-      <header style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
-        <button onClick={() => setStep(2)} style={{ background: "none", border: "none", color: "var(--mu)", cursor: "pointer" }}>‚Üê Volver</button>
+      <div style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
+        <button onClick={() => setStep(2)} style={{ background: "none", border: "none", color: "var(--mu)", cursor: "pointer" }}>? Volver</button>
         <h1 className="ff" style={{ fontSize: 22, fontWeight: 800 }}>{BIZ.name}</h1>
-      </header>
+      </div>
       <div style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
         <h2 className="ff" style={{ fontSize: 19, fontWeight: 700, marginBottom: 14 }}>Fecha y horario</h2>
-        <input type="date" min={today()} max={addDays(60)} value={selDate} onChange={e => setDate(e.target.value)} style={{ width: "100%", padding: 12, background: "var(--sf)", border: "1px solid var(--br)", borderRadius: 16, marginBottom: 16 }} />
-        {selDate && <div><p>{fmtD(selDate)}</p><button onClick={() => setTime("10:00")}>10:00</button><button onClick={() => setTime("11:00")}>11:00</button></div>}
-        {selTime && <button onClick={() => setStep(4)} className="ab" style={{ width: "100%", marginTop: 16, padding: 15, borderRadius: 16 }}>Continuar ‚Üí</button>}
+        <input type="date" min={today()} max={addDays(60)} value={selDate} onChange={e => setDate(e.target.value)} style={{ width: "100%", padding: 12, background: "var(--sf)", border: "1px solid var(--br)", borderRadius: 16, marginBottom: 16, color: "white" }} />
+        {selDate && <div><p>{fmtD(selDate)}</p><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{["10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"].map(h => <button key={h} onClick={() => setTime(h)} style={{ padding: 10, borderRadius: 12, background: selTime === h ? "var(--acc)" : "var(--sf)", border: "none", cursor: "pointer" }}>{h}</button>)}</div></div>}
+        {selTime && <button onClick={() => setStep(4)} className="ab" style={{ width: "100%", marginTop: 16, padding: 15, borderRadius: 16 }}>Continuar ?</button>}
+      </div>
+    </div>
+  );
+
+  if (step === 4) return (
+    <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
+      <style>{CSS}</style>
+      <div style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
+        <button onClick={() => setStep(3)} style={{ background: "none", border: "none", color: "var(--mu)", cursor: "pointer" }}>? Volver</button>
+        <h1 className="ff" style={{ fontSize: 22, fontWeight: 800 }}>{BIZ.name}</h1>
+      </div>
+      <div style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
+        <h2 className="ff" style={{ fontSize: 19, fontWeight: 700, marginBottom: 14 }}>Tus datos</h2>
+        <input type="text" placeholder="Nombre completo" value={name} onChange={e => setName(e.target.value)} style={{ width: "100%", padding: 12, background: "var(--sf)", border: "1px solid var(--br)", borderRadius: 16, marginBottom: 12, color: "white" }} />
+        <input type="tel" placeholder="WhatsApp (11 4444 5555)" value={phone} onChange={e => setPhone(e.target.value)} style={{ width: "100%", padding: 12, background: "var(--sf)", border: "1px solid var(--br)", borderRadius: 16, marginBottom: 16, color: "white" }} />
+        <button onClick={submit} disabled={sub || !name || !phone} className="ab" style={{ width: "100%", padding: 15, borderRadius: 16 }}>{sub ? "Reservando..." : "Confirmar turno"}</button>
       </div>
     </div>
   );
@@ -149,8 +151,8 @@ function Booking() {
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh", textAlign: "center", paddingTop: 80 }}>
       <style>{CSS}</style>
-      <div style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--acc)", color: "black", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 20px" }}>‚úì</div>
-      <h2 className="ff" style={{ fontSize: 24, fontWeight: 800 }}>¬°Reserva enviada!</h2>
+      <div style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--acc)", color: "black", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 20px" }}>?</div>
+      <h2 className="ff" style={{ fontSize: 24, fontWeight: 800 }}>°Reserva enviada!</h2>
       <button onClick={() => window.location.reload()} style={{ marginTop: 24, background: "var(--acc)", color: "black", padding: "12px 24px", borderRadius: 40, border: "none", fontWeight: "bold", cursor: "pointer" }}>Nueva reserva</button>
     </div>
   );
