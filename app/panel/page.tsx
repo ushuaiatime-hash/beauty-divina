@@ -19,21 +19,31 @@ function PinScreen({ onUnlock }: { onUnlock: () => void }) {
 
 function Admin() {
   const [apts, setApts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    supabase.from("appointments").select("*").order("date", { ascending: false }).then(({ data }) => setApts(data || []));
+    supabase.from("appointments").select("*").order("date", { ascending: false }).then(({ data }) => {
+      setApts(data || []);
+      setLoading(false);
+    });
   }, []);
+
   async function updateStatus(id: string, status: string) {
     await supabase.from("appointments").update({ status }).eq("id", id);
     setApts(apts.map(a => a.id === id ? { ...a, status } : a));
   }
+
+  if (loading) return <div style={{ padding: 50, textAlign: "center", color: "white", background: "#0d0a0e", minHeight: "100vh" }}>Cargando...</div>;
+
   return (
-    <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
-      <h1 style={{ color: "white" }}>Panel Admin</h1>
+    <div style={{ padding: 20, maxWidth: 600, margin: "0 auto", background: "#0d0a0e", minHeight: "100vh", color: "white" }}>
+      <h2>Panel Admin - {BIZ.name}</h2>
+      {apts.length === 0 && <p>No hay turnos</p>}
       {apts.map(a => (
         <div key={a.id} style={{ background: "#180f18", borderRadius: 16, padding: 16, marginBottom: 12 }}>
-          <p><strong style={{ color: "white" }}>{a.client_name}</strong> - <span style={{ color: "#ff6eb4" }}>{a.service_name}</span></p>
-          <p style={{ color: "#aaa" }}>{a.date} {a.time}hs Â· {a.professional_name}</p>
-          <p style={{ color: "#aaa" }}>WhatsApp: {a.client_phone}</p>
+          <p><strong>{a.client_name}</strong> - {a.service_name}</p>
+          <p style={{ fontSize: 12, opacity: 0.7 }}>{a.date} {a.time}hs · {a.professional_name}</p>
+          <p style={{ fontSize: 12 }}>WhatsApp: {a.client_phone}</p>
           <p>Estado: <strong style={{ color: a.status === "pending" ? "#fde047" : a.status === "confirmed" ? "#4ade80" : "#f87171" }}>{a.status}</strong></p>
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             {a.status === "pending" && <button onClick={() => updateStatus(a.id, "confirmed")} style={{ background: "#ff6eb4", border: "none", padding: "6px 12px", borderRadius: 8, cursor: "pointer" }}>Confirmar</button>}
