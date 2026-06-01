@@ -12,34 +12,47 @@ const CSS = `
   .ab{background:var(--acc);color:var(--bg);font-weight:800;cursor:pointer;border:none}
   .card{background:var(--sf);border-radius:20px;padding:20px;border:1px solid var(--br);transition:all 0.3s}
   .card:hover{border-color:var(--acc);transform:translateY(-3px)}
-  .badge{padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600}
 `;
 
-const BIZ = { name: "Beauty Divina Turnos", pin: "1234" };
+const BIZ = { name: "Beauty Divina Turnos", pin: "1234", ownerPhone: "541124055660" };
+const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
 
 export default function PanelPage() {
   const [pin, setPin] = useState("");
   const [auth, setAuth] = useState(false);
   const [turnos, setTurnos] = useState<any[]>([]);
-  const [filter, setFilter] = useState("all");
-  const [stats, setStats] = useState({ pending: 0, confirmed: 0, completed: 0, total: 0, revenue: 0 });
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [moviendo, setMoviendo] = useState<any>(null);
+  const [nuevaFecha, setNuevaFecha] = useState("");
+  const [nuevaHora, setNuevaHora] = useState("");
 
   useEffect(() => {
     if (auth) cargarTurnos();
   }, [auth]);
 
   async function cargarTurnos() {
-    const { data } = await supabase.from("appointments").select("*").order("date", { ascending: false });
+    const { data } = await supabase.from("appointments").select("*").order("date", { ascending: true });
     setTurnos(data || []);
-    const pending = data?.filter(t => t.status === "pending").length || 0;
-    const confirmed = data?.filter(t => t.status === "confirmed").length || 0;
-    const completed = data?.filter(t => t.status === "completed").length || 0;
-    const revenue = data?.filter(t => t.status === "completed").reduce((sum, t) => sum + (t.price || 0), 0) || 0;
-    setStats({ pending, confirmed, completed, total: data?.length || 0, revenue });
   }
 
-  async function actualizarStatus(id: string, status: string) {
-    await supabase.from("appointments").update({ status }).eq("id", id);
+  async function confirmarTurno(turno: any) {
+    await supabase.from("appointments").update({ status: "confirmed" }).eq("id", turno.id);
+    const mensaje = `🌸 *Turno confirmado*%0a%0aHola ${turno.client_name}, tu turno ha sido *confirmado*.%0a📅 *Fecha:* ${turno.date}%0a🕐 *Hora:* ${turno.time}hs%0a💅 *Servicio:* ${turno.service_name}%0a📍 *Dirección:* Cairo 83, Monte Grande%0a%0a¡Te esperamos! ✨`;
+    window.open(`https://wa.me/${turno.client_phone}?text=${mensaje}`, "_blank");
+    cargarTurnos();
+  }
+
+  async function moverTurno(turno: any) {
+    if (!nuevaFecha || !nuevaHora) return;
+    await supabase.from("appointments").update({ date: nuevaFecha, time: nuevaHora, status: "pending" }).eq("id", turno.id);
+    const mensaje = `🔄 *Turno modificado*%0a%0aHola ${turno.client_name}, tu turno ha sido *movido* por cambios en la agenda.%0a📅 *Nueva fecha:* ${nuevaFecha}%0a🕐 *Nueva hora:* ${nuevaHora}hs%0a💅 *Servicio:* ${turno.service_name}%0a%0aGracias por tu comprensión 🌸`;
+    window.open(`https://wa.me/${turno.client_phone}?text=${mensaje}`, "_blank");
+    setMoviendo(null);
     cargarTurnos();
   }
 
@@ -49,86 +62,70 @@ export default function PanelPage() {
         <style>{CSS}</style>
         <div className="card" style={{ width: 320, textAlign: "center" }}>
           <h1 className="ff" style={{ fontSize: 24, color: "var(--acc)", marginBottom: 20 }}>🔐 {BIZ.name}</h1>
-          <input type="password" placeholder="Código PIN" value={pin} onChange={e => setPin(e.target.value)} style={{ width: "100%", padding: 12, background: "rgba(255,255,255,.05)", border: "1px solid var(--br)", borderRadius: 12, color: "white", marginBottom: 16 }} />
-          <button onClick={() => pin === BIZ.pin && setAuth(true)} className="ab" style={{ width: "100%", padding: 12, borderRadius: 12, fontSize: 16 }}>Ingresar</button>
+          <input type="password" placeholder="PIN" value={pin} onChange={e => setPin(e.target.value)} style={{ width: "100%", padding: 12, background: "rgba(255,255,255,.05)", border: "1px solid var(--br)", borderRadius: 12, color: "white", marginBottom: 16 }} />
+          <button onClick={() => pin === BIZ.pin && setAuth(true)} className="ab" style={{ width: "100%", padding: 12, borderRadius: 12 }}>Ingresar</button>
         </div>
       </div>
     );
   }
 
-  const turnosFiltrados = filter === "all" ? turnos : turnos.filter(t => t.status === filter);
+  const turnosDelDia = turnos.filter(t => t.date === selectedDate).sort((a, b) => a.time.localeCompare(b.time));
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <style>{CSS}</style>
-      
-      {/* Header futurista */}
-      <div style={{ padding: "30px 20px", borderBottom: "1px solid var(--br)", background: "rgba(0,0,0,.3)" }}>
+      <div style={{ padding: "30px 20px", borderBottom: "1px solid var(--br)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-          <div>
-            <h1 className="ff" style={{ fontSize: 28, fontWeight: 800, background: "linear-gradient(135deg, #ff6eb4, #ffb347)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>✨ {BIZ.name}</h1>
-            <p style={{ fontSize: 13, color: "var(--mu)", marginTop: 4 }}>Dashboard de gestión</p>
-          </div>
-          <button onClick={() => { setAuth(false); setPin(""); }} style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--br)", padding: "8px 16px", borderRadius: 40, color: "white", cursor: "pointer" }}>🚪 Cerrar sesión</button>
+          <h1 className="ff" style={{ fontSize: 28, fontWeight: 800, background: "linear-gradient(135deg, #ff6eb4, #ffb347)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>✨ {BIZ.name}</h1>
+          <button onClick={() => { setAuth(false); setPin(""); }} style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--br)", padding: "8px 16px", borderRadius: 40, cursor: "pointer", color: "white" }}>🚪 Salir</button>
         </div>
       </div>
 
-      {/* Stats cards */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "30px 20px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 32 }}>
-          <div className="card" style={{ textAlign: "center" }}>
-            <p style={{ fontSize: 12, color: "var(--mu)" }}>Total turnos</p>
-            <p className="ff" style={{ fontSize: 36, fontWeight: 800, color: "white" }}>{stats.total}</p>
-          </div>
-          <div className="card" style={{ textAlign: "center", borderLeftColor: "#fde047" }}>
-            <p style={{ fontSize: 12, color: "var(--mu)" }}>⏳ Pendientes</p>
-            <p className="ff" style={{ fontSize: 36, fontWeight: 800, color: "#fde047" }}>{stats.pending}</p>
-          </div>
-          <div className="card" style={{ textAlign: "center", borderLeftColor: "#4ade80" }}>
-            <p style={{ fontSize: 12, color: "var(--mu)" }}>✅ Confirmados</p>
-            <p className="ff" style={{ fontSize: 36, fontWeight: 800, color: "#4ade80" }}>{stats.confirmed}</p>
-          </div>
-          <div className="card" style={{ textAlign: "center", borderLeftColor: "var(--acc)" }}>
-            <p style={{ fontSize: 12, color: "var(--mu)" }}>💰 Facturado</p>
-            <p className="ff" style={{ fontSize: 36, fontWeight: 800, color: "var(--acc)" }}>${stats.revenue.toLocaleString()}</p>
-          </div>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px" }}>
+        <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 16 }}>
+          {DAYS.map((day, idx) => {
+            const date = new Date();
+            date.setDate(date.getDate() - date.getDay() + idx + 1);
+            const dateStr = date.toISOString().split("T")[0];
+            const count = turnos.filter(t => t.date === dateStr).length;
+            const isSelected = selectedDate === dateStr;
+            return (
+              <button key={day} onClick={() => setSelectedDate(dateStr)} style={{ background: isSelected ? "var(--acc)" : "var(--sf)", border: "1px solid var(--br)", borderRadius: 20, padding: "12px 20px", minWidth: 100, cursor: "pointer", transition: "0.2s" }}>
+                <div className="ff" style={{ fontWeight: 700, color: isSelected ? "black" : "white" }}>{day}</div>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>{formatDate(dateStr)}</div>
+                <div style={{ fontSize: 10, marginTop: 4 }}>{count} turnos</div>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Filtros */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-          {["all", "pending", "confirmed", "completed"].map(f => (
-            <button key={f} onClick={() => setFilter(f)} className="ab" style={{ padding: "8px 20px", borderRadius: 40, fontSize: 14, background: filter === f ? "var(--acc)" : "rgba(255,255,255,.05)", color: filter === f ? "black" : "white", border: "none" }}>
-              {f === "all" ? "📋 Todos" : f === "pending" ? "⏳ Pendientes" : f === "confirmed" ? "✅ Confirmados" : "✔️ Completados"}
-            </button>
-          ))}
-        </div>
-
-        {/* Lista de turnos estilo tarjetas interactivas */}
-        <div style={{ display: "grid", gap: 16 }}>
-          {turnosFiltrados.length === 0 && (
-            <div className="card" style={{ textAlign: "center", padding: 40 }}>
-              <p style={{ color: "var(--mu)" }}>📭 No hay turnos en esta categoría</p>
-            </div>
-          )}
-          {turnosFiltrados.map(t => (
-            <div key={t.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
-                  <h3 className="ff" style={{ fontSize: 18, fontWeight: 700 }}>{t.client_name}</h3>
-                  <span className="badge" style={{ 
-                    background: t.status === "pending" ? "rgba(253,224,71,.15)" : t.status === "confirmed" ? "rgba(74,222,128,.15)" : "rgba(156,163,175,.15)",
-                    color: t.status === "pending" ? "#fde047" : t.status === "confirmed" ? "#4ade80" : "#9ca3af"
-                  }}>{t.status}</span>
+        <div style={{ marginTop: 24 }}>
+          <h2 className="ff" style={{ fontSize: 22, marginBottom: 16 }}>📅 Turnos del día</h2>
+          {turnosDelDia.length === 0 && <div className="card" style={{ textAlign: "center", padding: 40 }}>📭 No hay turnos este día</div>}
+          {turnosDelDia.map(t => (
+            <div key={t.id} className="card" style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+                    <h3 className="ff" style={{ fontSize: 18 }}>{t.client_name}</h3>
+                    <span style={{ padding: "4px 12px", borderRadius: 40, fontSize: 12, background: t.status === "pending" ? "rgba(253,224,71,.15)" : t.status === "confirmed" ? "rgba(74,222,128,.15)" : "rgba(156,163,175,.15)", color: t.status === "pending" ? "#fde047" : t.status === "confirmed" ? "#4ade80" : "#9ca3af" }}>{t.status}</span>
+                  </div>
+                  <p style={{ fontSize: 14, color: "var(--mu)" }}>💅 {t.service_name} · 👤 {t.professional_name}</p>
+                  <p style={{ fontSize: 13, color: "var(--mu)" }}>🕐 {t.time}hs · 📞 {t.client_phone}</p>
                 </div>
-                <p style={{ fontSize: 14, color: "var(--mu)" }}>💅 {t.service_name} · 👤 {t.professional_name}</p>
-                <p style={{ fontSize: 13, color: "var(--mu)" }}>📅 {t.date} 🕐 {t.time}hs · 📞 {t.client_phone}</p>
-                {t.price && <p style={{ fontSize: 14, fontWeight: 600, color: "var(--acc)", marginTop: 4 }}>💰 ${t.price.toLocaleString()}</p>}
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {t.status === "pending" && <button onClick={() => actualizarStatus(t.id, "confirmed")} style={{ background: "#4ade80", color: "black", border: "none", padding: "8px 16px", borderRadius: 40, cursor: "pointer", fontWeight: 600 }}>Confirmar</button>}
-                {t.status === "pending" && <button onClick={() => actualizarStatus(t.id, "cancelled")} style={{ background: "rgba(239,68,68,.2)", color: "#f87171", border: "1px solid #f87171", padding: "8px 16px", borderRadius: 40, cursor: "pointer" }}>Cancelar</button>}
-                {t.status === "confirmed" && <button onClick={() => actualizarStatus(t.id, "completed")} style={{ background: "var(--acc)", color: "black", border: "none", padding: "8px 16px", borderRadius: 40, cursor: "pointer", fontWeight: 600 }}>Completar</button>}
-                {t.status === "confirmed" && <button onClick={() => actualizarStatus(t.id, "cancelled")} style={{ background: "rgba(239,68,68,.2)", color: "#f87171", border: "1px solid #f87171", padding: "8px 16px", borderRadius: 40, cursor: "pointer" }}>Cancelar</button>}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {t.status === "pending" && <button onClick={() => confirmarTurno(t)} style={{ background: "#4ade80", color: "black", border: "none", padding: "8px 16px", borderRadius: 40, cursor: "pointer", fontWeight: 600 }}>✅ Confirmar</button>}
+                  {moviendo?.id === t.id ? (
+                    <>
+                      <input type="date" value={nuevaFecha} onChange={e => setNuevaFecha(e.target.value)} style={{ background: "var(--sf)", border: "1px solid var(--br)", padding: 8, borderRadius: 12, color: "white" }} />
+                      <input type="time" value={nuevaHora} onChange={e => setNuevaHora(e.target.value)} style={{ background: "var(--sf)", border: "1px solid var(--br)", padding: 8, borderRadius: 12, color: "white" }} />
+                      <button onClick={() => moverTurno(t)} style={{ background: "var(--acc)", border: "none", padding: "8px 16px", borderRadius: 40, cursor: "pointer", fontWeight: 600 }}>Guardar</button>
+                      <button onClick={() => setMoviendo(null)} style={{ background: "#555", border: "none", padding: "8px 16px", borderRadius: 40, cursor: "pointer", color: "white" }}>Cancelar</button>
+                    </>
+                  ) : (
+                    <button onClick={() => setMoviendo(t)} style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--br)", padding: "8px 16px", borderRadius: 40, cursor: "pointer", color: "white" }}>🔄 Mover turno</button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
