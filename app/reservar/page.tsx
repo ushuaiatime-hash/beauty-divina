@@ -86,6 +86,8 @@ export default function ReservarPage() {
   async function submit() {
     if (!selSvc || !selProf || !selDate || !selTime || !name || !phone) return;
     setSub(true);
+
+    // Verificar si ya existe turno
     const { data: existing } = await supabase
       .from("appointments")
       .select("id")
@@ -93,11 +95,14 @@ export default function ReservarPage() {
       .eq("date", selDate)
       .eq("time", selTime)
       .neq("status", "cancelled");
+
     if (existing && existing.length > 0) {
       alert("❌ Horario ocupado");
       setSub(false);
       return;
     }
+
+    // Guardar turno
     const { error } = await supabase.from("appointments").insert({
       client_name: name,
       client_phone: phone,
@@ -109,9 +114,13 @@ export default function ReservarPage() {
       price: selSvc.price,
       status: "pending"
     });
+
     if (error) {
       alert("Error al guardar");
     } else {
+      // Notificar a la dueña por WhatsApp
+      const mensajeDuena = `📅 *NUEVA RESERVA*%0a%0a👤 *Cliente:* ${name}%0a📞 *WhatsApp:* ${phone}%0a💅 *Servicio:* ${selSvc.name}%0a👩‍💼 *Profesional:* ${selProf.name}%0a📆 *Fecha:* ${fmtD(selDate)}%0a🕐 *Hora:* ${selTime}hs%0a📍 *Dirección:* Cairo 83, Monte Grande%0a%0a🔔 *Quedo atenta a la confirmación.*`;
+      window.open(`https://wa.me/541124055660?text=${mensajeDuena}`, "_blank");
       setStep(5);
     }
     setSub(false);
