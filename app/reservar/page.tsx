@@ -8,215 +8,184 @@ const CSS = `
   :root{--acc:#ff6eb4;--bg:#0d0a0e;--sf:#180f18;--br:rgba(255,110,180,.1);--tx:#f5f0f4;--mu:rgba(245,240,244,.45)}
   body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--tx)}
   .ff{font-family:'Syne',sans-serif}
-  .sf{background:var(--sf);border:1px solid var(--br)}
-  .ab{background:var(--acc);color:var(--bg);font-weight:800;cursor:pointer;border:none}
-  .tag{display:inline-flex;padding:2px 10px;border-radius:999px;font-size:.67rem;border:1px solid}
+  .btn{background:var(--acc);color:black;border:none;padding:12px 20px;border-radius:60px;font-weight:800;font-size:14px;cursor:pointer;transition:0.2s}
+  .btn-small{background:rgba(255,255,255,.1);border:1px solid var(--br);padding:8px 16px;border-radius:60px;cursor:pointer;color:white}
+  .card{background:var(--sf);border-radius:24px;padding:16px;border:1px solid var(--br);margin-bottom:12px}
 `;
 
-const BIZ = { 
-  name: "Beauty Divina Turnos", 
-  desc: "Salón de belleza & estética premium 💅", 
-  phone: "541164475239", 
-  addr: "Cairo 83, Monte Grande"
-};
+const BIZ = { name: "Beauty Divina", pin: "1234", ownerPhone: "541124055260" };
+const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
-const PROFS_INIT = [
-  { id: "p1", name: "Milagros Dominguez", spec: "Uñas & Pedicura", ini: "MD" },
-  { id: "p2", name: "Micaela Gomez", spec: "Cosmetología", ini: "MG" },
-];
-
-const SVCS = [
-  { id: "s1", name: "Manicuria Semipermanente", desc: "Esmaltado semi + diseño", dur: 60, price: 3500, cat: "Uñas", active: true },
-  { id: "s2", name: "Pedicuría Completa", desc: "Tratamiento completo", dur: 75, price: 4200, cat: "Uñas", active: true },
-  { id: "s3", name: "Limpieza Facial Profunda", desc: "Limpieza + hidratación", dur: 90, price: 6500, cat: "Facial", active: true },
-  { id: "s4", name: "Depilación Piernas", desc: "Cera fría premium", dur: 50, price: 3000, cat: "Depilación", active: true },
-];
-
-const today = () => new Date().toISOString().split("T")[0];
-const addDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().split("T")[0]; };
-const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
-const addMin = (t: string, m: number) => { const x = toMin(t) + m; return `${Math.floor(x / 60).toString().padStart(2, "0")}:${(x % 60).toString().padStart(2, "0")}`; };
-const fmtP = (n: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n);
-const fmtD = (d: string) => { const f = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long" }).format(new Date(d + "T00:00:00")); return f.charAt(0).toUpperCase() + f.slice(1); };
-const dow = (d: string) => new Date(d + "T00:00:00").getDay();
-
-function genSlots(s: string, e: string, dur: number, occupied: { t: string; e: string }[]) {
-  const slots: string[] = [];
-  let cur = toMin(s);
-  const end = toMin(e);
-  while (cur + dur <= end) {
-    const time = `${Math.floor(cur / 60).toString().padStart(2, "0")}:${(cur % 60).toString().padStart(2, "0")}`;
-    if (!occupied.some(o => cur < toMin(o.e) && cur + dur > toMin(o.t))) slots.push(time);
-    cur += dur;
-  }
-  return slots;
+function formatFecha(dateStr: string) {
+  const d = new Date(dateStr);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
-export default function ReservarPage() {
-  const [step, setStep] = useState(1);
-  const [selSvc, setSvc] = useState<any>(null);
-  const [selProf, setProf] = useState<any>(null);
-  const [selDate, setDate] = useState("");
-  const [selTime, setTime] = useState("");
-  const [slots, setSlots] = useState<string[]>([]);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [sub, setSub] = useState(false);
-  const activeSvcs = SVCS.filter(s => s.active);
+export default function PanelPage() {
+  const [pin, setPin] = useState("");
+  const [auth, setAuth] = useState(false);
+  const [turnos, setTurnos] = useState<any[]>([]);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date().toISOString().split("T")[0]);
+  const [moviendo, setMoviendo] = useState<any>(null);
+  const [nuevaFecha, setNuevaFecha] = useState("");
+  const [nuevaHora, setNuevaHora] = useState("");
+  const [servicios, setServicios] = useState([
+    { id: "s1", name: "Manicuria", price: 3500, active: true },
+    { id: "s2", name: "Pedicuria", price: 4200, active: true },
+    { id: "s3", name: "Facial", price: 6500, active: true },
+    { id: "s4", name: "Depilación", price: 3000, active: true },
+  ]);
+  const [mostrarServicios, setMostrarServicios] = useState(false);
+  const [nuevoServicio, setNuevoServicio] = useState({ name: "", price: 0 });
 
   useEffect(() => {
-    if (!selProf || !selDate || !selSvc) return;
-    supabase
-      .from("appointments")
-      .select("time")
-      .eq("professional_name", selProf.name)
-      .eq("date", selDate)
-      .neq("status", "cancelled")
-      .then(({ data }) => {
-        const occupied = data?.map(a => ({ t: a.time, e: addMin(a.time, selSvc.dur) })) || [];
-        const allSlots: string[] = [];
-        const hours = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
-        for (let i = 0; i < hours.length - 1; i++) {
-          genSlots(hours[i], hours[i + 1], selSvc.dur, occupied).forEach(s => allSlots.push(s));
-        }
-        setSlots(allSlots.sort());
-      });
-  }, [selProf, selDate, selSvc]);
+    if (auth) cargarTurnos();
+  }, [auth]);
 
-  async function submit() {
-    if (!selSvc || !selProf || !selDate || !selTime || !name || !phone) return;
-    setSub(true);
-
-    // Verificar si ya existe turno
-    const { data: existing } = await supabase
-      .from("appointments")
-      .select("id")
-      .eq("professional_name", selProf.name)
-      .eq("date", selDate)
-      .eq("time", selTime)
-      .neq("status", "cancelled");
-
-    if (existing && existing.length > 0) {
-      alert("❌ Horario ocupado");
-      setSub(false);
-      return;
-    }
-
-    // Guardar turno
-    const { error } = await supabase.from("appointments").insert({
-      client_name: name,
-      client_phone: phone,
-      service_name: selSvc.name,
-      professional_name: selProf.name,
-      date: selDate,
-      time: selTime,
-      duration_minutes: selSvc.dur,
-      price: selSvc.price,
-      status: "pending"
-    });
-
-    if (error) {
-      alert("Error al guardar");
-    } else {
-      // Notificar a la dueña por WhatsApp
-      const mensajeDuena = `📅 *NUEVA RESERVA*%0a%0a👤 *Cliente:* ${name}%0a📞 *WhatsApp:* ${phone}%0a💅 *Servicio:* ${selSvc.name}%0a👩‍💼 *Profesional:* ${selProf.name}%0a📆 *Fecha:* ${fmtD(selDate)}%0a🕐 *Hora:* ${selTime}hs%0a📍 *Dirección:* Cairo 83, Monte Grande%0a%0a🔔 *Quedo atenta a la confirmación.*`;
-      window.open(`https://wa.me/541124055660?text=${mensajeDuena}`, "_blank");
-      setStep(5);
-    }
-    setSub(false);
+  async function cargarTurnos() {
+    const { data } = await supabase.from("appointments").select("*").order("date", { ascending: true });
+    setTurnos(data || []);
   }
 
-  if (step === 1) return (
-    <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
-      <style>{CSS}</style>
-      <div style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
-        <h1 className="ff" style={{ fontSize: 26, fontWeight: 800 }}>{BIZ.name}</h1>
-        <p style={{ fontSize: 12, color: "var(--mu)" }}>{BIZ.desc}</p>
-        <p style={{ fontSize: 11, color: "var(--mu)" }}>📍 {BIZ.addr}</p>
-      </div>
-      <div style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
-        <h2 className="ff" style={{ fontSize: 19, fontWeight: 700, marginBottom: 14 }}>¿Qué servicio?</h2>
-        {activeSvcs.map(s => (
-          <div key={s.id} onClick={() => { setSvc(s); setStep(2); }} className="sf" style={{ borderRadius: 16, padding: 14, marginBottom: 10, cursor: "pointer" }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <div><p className="ff" style={{ fontWeight: 700 }}>{s.name}</p><p style={{ fontSize: 12, color: "var(--mu)" }}>{s.desc}</p><div style={{ display: "flex", gap: 8, marginTop: 8 }}><span className="tag">{s.cat}</span><span>{s.dur}min</span></div></div>
-              <p className="ff" style={{ fontWeight: 800, fontSize: 18, color: "var(--acc)" }}>{fmtP(s.price)}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  async function confirmarTurno(t: any) {
+    await supabase.from("appointments").update({ status: "confirmed" }).eq("id", t.id);
+    const msg = `🌸 Turno confirmado\n\nHola ${t.client_name}, tu turno ha sido confirmado.\n📅 ${t.date} ${t.time}hs\n💅 ${t.service_name}\n📍 Cairo 83, Monte Grande`;
+    window.open(`https://wa.me/${t.client_phone}?text=${encodeURIComponent(msg)}`, "_blank");
+    cargarTurnos();
+  }
 
-  if (step === 2) return (
-    <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
-      <style>{CSS}</style>
-      <div style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
-        <button onClick={() => setStep(1)} style={{ background: "none", border: "none", color: "var(--mu)", cursor: "pointer" }}>← Volver</button>
-        <h1 className="ff" style={{ fontSize: 22, fontWeight: 800 }}>{BIZ.name}</h1>
-      </div>
-      <div style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
-        <h2 className="ff" style={{ fontSize: 19, fontWeight: 700, marginBottom: 14 }}>¿Con quién?</h2>
-        {PROFS_INIT.map(p => (
-          <div key={p.id} onClick={() => { setProf(p); setStep(3); }} className="sf" style={{ borderRadius: 16, padding: 14, marginBottom: 10, cursor: "pointer" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 46, height: 46, borderRadius: 12, background: "rgba(200,245,66,.12)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{p.ini}</div>
-              <div><p className="ff" style={{ fontWeight: 700 }}>{p.name}</p><p style={{ fontSize: 12, color: "var(--mu)" }}>{p.spec}</p></div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  async function moverTurno(t: any) {
+    if (!nuevaFecha || !nuevaHora) return;
+    await supabase.from("appointments").update({ date: nuevaFecha, time: nuevaHora, status: "pending" }).eq("id", t.id);
+    const msg = `🔄 Turno modificado\n\nHola ${t.client_name}, tu turno fue movido.\n📅 Nueva fecha: ${nuevaFecha}\n🕐 Nueva hora: ${nuevaHora}hs`;
+    window.open(`https://wa.me/${t.client_phone}?text=${encodeURIComponent(msg)}`, "_blank");
+    setMoviendo(null);
+    cargarTurnos();
+  }
 
-  if (step === 3) return (
-    <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
-      <style>{CSS}</style>
-      <div style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
-        <button onClick={() => setStep(2)} style={{ background: "none", border: "none", color: "var(--mu)", cursor: "pointer" }}>← Volver</button>
-        <h1 className="ff" style={{ fontSize: 22, fontWeight: 800 }}>{BIZ.name}</h1>
-      </div>
-      <div style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
-        <h2 className="ff" style={{ fontSize: 19, fontWeight: 700, marginBottom: 14 }}>Fecha y horario</h2>
-        <input type="date" min={today()} max={addDays(60)} value={selDate} onChange={e => { setDate(e.target.value); setTime(""); }} style={{ width: "100%", padding: 12, background: "var(--sf)", border: "1px solid var(--br)", borderRadius: 16, marginBottom: 16, color: "white" }} />
-        {selDate && (
-          <div>
-            <p className="ff" style={{ fontWeight: 600, marginBottom: 8 }}>{fmtD(selDate)}</p>
-            {slots.length === 0 ? <p>Sin disponibilidad</p> : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-                {slots.map(sl => <button key={sl} onClick={() => setTime(sl)} style={{ padding: 10, borderRadius: 12, background: selTime === sl ? "var(--acc)" : "var(--sf)", color: selTime === sl ? "black" : "white", border: "none", cursor: "pointer" }}>{sl}</button>)}
-              </div>
-            )}
-          </div>
-        )}
-        {selTime && <button onClick={() => setStep(4)} className="ab" style={{ width: "100%", marginTop: 16, padding: 15, borderRadius: 16 }}>Continuar →</button>}
-      </div>
-    </div>
-  );
+  async function agregarServicio() {
+    if (!nuevoServicio.name || !nuevoServicio.price) return;
+    setServicios([...servicios, { ...nuevoServicio, id: `s${Date.now()}`, active: true }]);
+    setNuevoServicio({ name: "", price: 0 });
+  }
 
-  if (step === 4) return (
-    <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
-      <style>{CSS}</style>
-      <div style={{ padding: "44px 20px", borderBottom: "1px solid var(--br)" }}>
-        <button onClick={() => setStep(3)} style={{ background: "none", border: "none", color: "var(--mu)", cursor: "pointer" }}>← Volver</button>
-        <h1 className="ff" style={{ fontSize: 22, fontWeight: 800 }}>{BIZ.name}</h1>
+  if (!auth) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <style>{CSS}</style>
+        <div className="card" style={{ width: 300, textAlign: "center" }}>
+          <h2 className="ff" style={{ fontSize: 22, marginBottom: 20 }}>🔐 Panel</h2>
+          <input type="password" placeholder="PIN" value={pin} onChange={e => setPin(e.target.value)} style={{ width: "100%", padding: 14, background: "rgba(255,255,255,.05)", border: "1px solid var(--br)", borderRadius: 60, color: "white", marginBottom: 16, textAlign: "center", fontSize: 20 }} />
+          <button onClick={() => pin === BIZ.pin && setAuth(true)} className="btn" style={{ width: "100%" }}>Ingresar</button>
+        </div>
       </div>
-      <div style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
-        <h2 className="ff" style={{ fontSize: 19, fontWeight: 700, marginBottom: 14 }}>Tus datos</h2>
-        <input type="text" placeholder="Nombre completo" value={name} onChange={e => setName(e.target.value)} style={{ width: "100%", padding: 12, background: "var(--sf)", border: "1px solid var(--br)", borderRadius: 16, marginBottom: 12, color: "white" }} />
-        <input type="tel" placeholder="WhatsApp (11 4444 5555)" value={phone} onChange={e => setPhone(e.target.value)} style={{ width: "100%", padding: 12, background: "var(--sf)", border: "1px solid var(--br)", borderRadius: 16, marginBottom: 16, color: "white" }} />
-        <button onClick={submit} disabled={sub || !name || !phone} className="ab" style={{ width: "100%", padding: 15, borderRadius: 16 }}>{sub ? "Reservando..." : "Confirmar turno"}</button>
-      </div>
-    </div>
-  );
+    );
+  }
+
+  const turnosDelDia = turnos.filter(t => t.date === fechaSeleccionada).sort((a, b) => a.time.localeCompare(b.time));
+  const turnosHoy = turnos.filter(t => t.date === new Date().toISOString().split("T")[0]).length;
+  const pendientes = turnos.filter(t => t.status === "pending").length;
+  const gananciasMes = turnos.filter(t => t.status === "completed" && t.date.startsWith(new Date().toISOString().slice(0, 7))).reduce((s, t) => s + (t.price || 0), 0);
 
   return (
-    <div style={{ background: "var(--bg)", minHeight: "100vh", textAlign: "center", paddingTop: 80 }}>
+    <div style={{ background: "var(--bg)", minHeight: "100vh", paddingBottom: 40 }}>
       <style>{CSS}</style>
-      <div style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--acc)", color: "black", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, margin: "0 auto 20px" }}>✓</div>
-      <h2 className="ff" style={{ fontSize: 24, fontWeight: 800 }}>¡Reserva enviada!</h2>
-      <p style={{ color: "var(--mu)", marginTop: 8 }}>Te avisaremos por WhatsApp cuando sea confirmada.</p>
-      <button onClick={() => window.location.reload()} style={{ marginTop: 24, background: "var(--acc)", color: "black", padding: "12px 24px", borderRadius: 40, border: "none", fontWeight: "bold", cursor: "pointer" }}>Nueva reserva</button>
+      
+      <div style={{ padding: "20px 16px", borderBottom: "1px solid var(--br)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h1 className="ff" style={{ fontSize: 24, fontWeight: 800, color: "var(--acc)" }}>✨ {BIZ.name}</h1>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setMostrarServicios(!mostrarServicios)} className="btn-small">✂️ Servicios</button>
+            <button onClick={() => { setAuth(false); }} className="btn-small">🚪 Salir</button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, padding: "16px" }}>
+        <div className="card" style={{ textAlign: "center", padding: 12 }}>
+          <div style={{ fontSize: 28 }}>📅</div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>{turnosHoy}</div>
+          <div style={{ fontSize: 11, color: "var(--mu)" }}>Turnos hoy</div>
+        </div>
+        <div className="card" style={{ textAlign: "center", padding: 12 }}>
+          <div style={{ fontSize: 28 }}>⏳</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "#fde047" }}>{pendientes}</div>
+          <div style={{ fontSize: 11, color: "var(--mu)" }}>Pendientes</div>
+        </div>
+        <div className="card" style={{ textAlign: "center", padding: 12 }}>
+          <div style={{ fontSize: 28 }}>💰</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--acc)" }}>${gananciasMes.toLocaleString()}</div>
+          <div style={{ fontSize: 11, color: "var(--mu)" }}>Este mes</div>
+        </div>
+      </div>
+
+      {mostrarServicios && (
+        <div style={{ padding: "0 16px", marginBottom: 16 }}>
+          <div className="card">
+            <h3 className="ff" style={{ fontSize: 18, marginBottom: 12 }}>✂️ Servicios</h3>
+            {servicios.filter(s => s.active).map(s => (
+              <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <span><strong>{s.name}</strong> ${s.price}</span>
+                <button onClick={() => setServicios(servicios.map(ser => ser.id === s.id ? { ...ser, active: false } : ser))} className="btn-small" style={{ background: "rgba(239,68,68,.2)", color: "#f87171" }}>Ocultar</button>
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <input placeholder="Nombre" value={nuevoServicio.name} onChange={e => setNuevoServicio({ ...nuevoServicio, name: e.target.value })} style={{ flex: 2, background: "rgba(255,255,255,.05)", border: "1px solid var(--br)", padding: 10, borderRadius: 60, color: "white" }} />
+              <input placeholder="Precio" type="number" value={nuevoServicio.price} onChange={e => setNuevoServicio({ ...nuevoServicio, price: parseInt(e.target.value) || 0 })} style={{ flex: 1, background: "rgba(255,255,255,.05)", border: "1px solid var(--br)", padding: 10, borderRadius: 60, color: "white" }} />
+              <button onClick={agregarServicio} className="btn">+</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ overflowX: "auto", whiteSpace: "nowrap", padding: "0 16px", marginBottom: 16 }}>
+        {DIAS.map((dia, idx) => {
+          const date = new Date();
+          date.setDate(date.getDate() - date.getDay() + idx + 1);
+          const dateStr = date.toISOString().split("T")[0];
+          const count = turnos.filter(t => t.date === dateStr).length;
+          const isSelected = fechaSeleccionada === dateStr;
+          return (
+            <button key={dia} onClick={() => setFechaSeleccionada(dateStr)} style={{ display: "inline-block", background: isSelected ? "var(--acc)" : "var(--sf)", border: "1px solid var(--br)", borderRadius: 60, padding: "10px 16px", marginRight: 8, cursor: "pointer", transition: "0.2s" }}>
+              <span style={{ fontWeight: 700, color: isSelected ? "black" : "white" }}>{dia}</span>
+              <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.7 }}>{formatFecha(dateStr)}</span>
+              <span style={{ fontSize: 10, marginLeft: 6, background: isSelected ? "black" : "var(--acc)", padding: "2px 6px", borderRadius: 20, color: isSelected ? "white" : "black" }}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ padding: "0 16px" }}>
+        <h2 className="ff" style={{ fontSize: 20, marginBottom: 12 }}>📋 Turnos</h2>
+        {turnosDelDia.length === 0 && <div className="card" style={{ textAlign: "center", padding: 24 }}>📭 Sin turnos</div>}
+        {turnosDelDia.map(t => (
+          <div key={t.id} className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div>
+                <span style={{ fontWeight: 800, fontSize: 16 }}>{t.client_name}</span>
+                <span style={{ marginLeft: 8, fontSize: 12, background: t.status === "pending" ? "rgba(253,224,71,.2)" : "rgba(74,222,128,.2)", padding: "2px 8px", borderRadius: 60, color: t.status === "pending" ? "#fde047" : "#4ade80" }}>{t.status}</span>
+              </div>
+              <span style={{ fontWeight: 700, color: "var(--acc)" }}>{t.time}</span>
+            </div>
+            <div style={{ fontSize: 13, color: "var(--mu)", marginBottom: 12 }}>💅 {t.service_name} · 👤 {t.professional_name}</div>
+            
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {t.status === "pending" && <button onClick={() => confirmarTurno(t)} className="btn" style={{ padding: "8px 16px" }}>✅ Confirmar</button>}
+              
+              {moviendo?.id === t.id ? (
+                <>
+                  <input type="date" value={nuevaFecha} onChange={e => setNuevaFecha(e.target.value)} style={{ background: "var(--sf)", border: "1px solid var(--br)", padding: 8, borderRadius: 60, color: "white", width: 130 }} />
+                  <input type="time" value={nuevaHora} onChange={e => setNuevaHora(e.target.value)} style={{ background: "var(--sf)", border: "1px solid var(--br)", padding: 8, borderRadius: 60, color: "white", width: 90 }} />
+                  <button onClick={() => moverTurno(t)} className="btn" style={{ padding: "8px 16px", background: "#4ade80", color: "black" }}>Guardar</button>
+                  <button onClick={() => setMoviendo(null)} className="btn-small">Cancelar</button>
+                </>
+              ) : (
+                <button onClick={() => setMoviendo(t)} className="btn-small">🔄 Mover</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
