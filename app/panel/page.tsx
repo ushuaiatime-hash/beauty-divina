@@ -64,8 +64,6 @@ export default function PanelPage() {
   const [statsPending, setStatsPending] = useState(0);
   const [statsRevenue, setStatsRevenue] = useState(0);
   const [topServices, setTopServices] = useState<{ name: string; count: number; revenue: number }[]>([]);
-  
-  // Estado para facturación
   const [billingPeriod, setBillingPeriod] = useState<"day"|"week"|"month">("month");
   const [billingData, setBillingData] = useState<{ date: string; total: number; appointments: Appointment[] }[]>([]);
 
@@ -94,12 +92,41 @@ export default function PanelPage() {
 
   useEffect(() => { if (authenticated) loadAppointments(); }, [authenticated, loadAppointments]);
 
+  useEffect(() => {
+    if (!authenticated) return;
+    const generateBillingData = () => {
+      const allCompleted = [...appointments, ...completedAppointments].filter(a => a.status === "completed");
+      if (billingPeriod === "day") {
+        const today = formatDate(new Date());
+        const dayData = allCompleted.filter(a => a.date === today);
+        setBillingData([{ date: "Hoy", total: dayData.reduce((s, a) => s + (a.price || 0), 0), appointments: dayData }]);
+      } else if (billingPeriod === "week") {
+        const weekData: Record<string, { total: number; appointments: Appointment[] }> = {};
+        weekDates.forEach(d => {
+          const ds = formatDate(d);
+          const dayApps = allCompleted.filter(a => a.date === ds);
+          weekData[ds] = { total: dayApps.reduce((s, a) => s + (a.price || 0), 0), appointments: dayApps };
+        });
+        setBillingData(Object.entries(weekData).map(([date, data]) => ({ date, ...data })));
+      } else {
+        const monthData: Record<string, { total: number; appointments: Appointment[] }> = {};
+        allCompleted.forEach(a => {
+          const monthKey = a.date.slice(0, 7);
+          if (!monthData[monthKey]) monthData[monthKey] = { total: 0, appointments: [] };
+          monthData[monthKey].total += a.price || 0;
+          monthData[monthKey].appointments.push(a);
+        });
+        setBillingData(Object.entries(monthData).map(([date, data]) => ({ date, ...data })).sort((a, b) => b.date.localeCompare(a.date)));
+      }
+    };
+    generateBillingData();
+  }, [authenticated, appointments, completedAppointments, billingPeriod, weekDates]);
+
   function handlePinSubmit() {
     if (pin === OWNER_PIN) { setAuthenticated(true); setPinError(false); }
     else { setPinError(true); setPin(""); }
   }
 
-  // Filtrar turnos según el filtro seleccionado
   const getFilteredAppointments = () => {
     const dayAppointments = appointments.filter(a => a.date === selectedDate);
     if (filter === "pending") return dayAppointments.filter(a => a.status === "pending");
@@ -141,7 +168,6 @@ export default function PanelPage() {
     loadAppointments();
   }
 
-  // Bloquear/desbloquear horario para un día específico
   const isSlotBlockedForDay = (date: string, time: string) => {
     return blockedSlotsByDay.some(bs => bs.date === date && bs.time === time);
   };
@@ -164,119 +190,84 @@ export default function PanelPage() {
     setNewServiceName(""); setNewServicePrice("");
   }
 
-  // Generar datos de facturación según el período seleccionado
-  useEffect(() => {
-    if (!authenticated) return;
-    const generateBillingData = () => {
-      const allCompleted = [...appointments, ...completedAppointments].filter(a => a.status === "completed");
-      if (billingPeriod === "day") {
-        const today = formatDate(new Date());
-        const dayData = allCompleted.filter(a => a.date === today);
-        setBillingData([{ date: "Hoy", total: dayData.reduce((s, a) => s + (a.price || 0), 0), appointments: dayData }]);
-      } else if (billingPeriod === "week") {
-        const weekData: Record<string, { total: number; appointments: Appointment[] }> = {};
-        weekDates.forEach(d => {
-          const ds = formatDate(d);
-          const dayApps = allCompleted.filter(a => a.date === ds);
-          weekData[ds] = { total: dayApps.reduce((s, a) => s + (a.price || 0), 0), appointments: dayApps };
-        });
-        setBillingData(Object.entries(weekData).map(([date, data]) => ({ date, ...data })));
-      } else {
-        const monthData: Record<string, { total: number; appointments: Appointment[] }> = {};
-        allCompleted.forEach(a => {
-          const monthKey = a.date.slice(0, 7);
-          if (!monthData[monthKey]) monthData[monthKey] = { total: 0, appointments: [] };
-          monthData[monthKey].total += a.price || 0;
-          monthData[monthKey].appointments.push(a);
-        });
-        setBillingData(Object.entries(monthData).map(([date, data]) => ({ date, ...data })).sort((a, b) => b.date.localeCompare(a.date)));
-      }
-    };
-    generateBillingData();
-  }, [authenticated, appointments, completedAppointments, billingPeriod, weekDates]);
-
   const maxRev = topServices[0]?.revenue || 1;
 
   if (!authenticated) {
     return (
-      <div style={p.page}>
-        <style>{css}</style>
-        <div style={p.card} className="fadeIn">
-          <div style={p.logoRow}>
-            <span style={p.logoDot}>✦</span>
-            <span style={p.logoTxt}>Beauty Divina</span>
+      <div style={pinStyles.page}>
+        <style>{globalCSS}</style>
+        <div style={pinStyles.card} className="fadeIn">
+          <div style={pinStyles.logoRow}>
+            <span style={pinStyles.logoDot}>✦</span>
+            <span style={pinStyles.logoTxt}>Beauty Divina</span>
           </div>
-          <p style={p.logoSub}>Panel de la dueña</p>
-          <div style={p.lockEmoji}>🔐</div>
-          <p style={p.pinHint}>Ingresá tu PIN de acceso</p>
+          <p style={pinStyles.logoSub}>Panel de la dueña</p>
+          <div style={pinStyles.lockEmoji}>🔐</div>
+          <p style={pinStyles.pinHint}>Ingresá tu PIN de acceso</p>
           <input
             type="password" inputMode="numeric" maxLength={4}
-            style={{ ...p.pinInput, ...(pinError ? p.pinInputErr : {}) }}
+            style={{ ...pinStyles.pinInput, ...(pinError ? pinStyles.pinInputErr : {}) }}
             value={pin}
             onChange={(e) => { setPin(e.target.value.replace(/\D/g, "")); setPinError(false); }}
             onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
             placeholder="••••" autoFocus
           />
-          {pinError && <p style={p.pinErrTxt}>PIN incorrecto. Intentá de nuevo.</p>}
-          <button style={p.btn} onClick={handlePinSubmit}>Ingresar →</button>
-          <p style={p.footer}>Beauty Divina · Cairo 83, Monte Grande</p>
+          {pinError && <p style={pinStyles.pinErrTxt}>PIN incorrecto. Intentá de nuevo.</p>}
+          <button style={pinStyles.btn} onClick={handlePinSubmit}>Ingresar →</button>
+          <p style={pinStyles.footer}>Beauty Divina · Cairo 83, Monte Grande</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={s.page}>
-      <style>{css}</style>
+    <div style={dashboardStyles.page}>
+      <style>{globalCSS}</style>
 
-      <header style={s.header}>
-        <div style={s.headerInner}>
-          <div style={s.logoRow}>
-            <span style={s.logoDot}>✦</span>
-            <span style={s.logoTxt}>Beauty Divina</span>
+      <header style={dashboardStyles.header}>
+        <div style={dashboardStyles.headerInner}>
+          <div style={dashboardStyles.logoRow}>
+            <span style={dashboardStyles.logoDot}>✦</span>
+            <span style={dashboardStyles.logoTxt}>Beauty Divina</span>
           </div>
-          <button style={s.logoutBtn} onClick={() => setAuthenticated(false)}>Salir</button>
+          <button style={dashboardStyles.logoutBtn} onClick={() => setAuthenticated(false)}>Salir</button>
         </div>
-        <p style={s.headerSub}>Panel de gestión · Cairo 83, Monte Grande</p>
+        <p style={dashboardStyles.headerSub}>Panel de gestión · Cairo 83, Monte Grande</p>
       </header>
 
-      {/* Stats */}
-      <div style={s.statsRow}>
+      <div style={dashboardStyles.statsRow}>
         {[
           { icon: "📅", val: statsToday, label: "Turnos hoy", color: "#e91e63" },
           { icon: "⏳", val: statsPending, label: "Pendientes", color: "#f59e0b" },
           { icon: "💰", val: `$${statsRevenue.toLocaleString("es-AR")}`, label: "Facturado este mes", color: "#10b981", small: true },
         ].map((st, i) => (
-          <div key={i} style={{ ...s.statCard, borderTop: `3px solid ${st.color}` }}>
-            <span style={s.statIcon}>{st.icon}</span>
-            <span style={{ ...s.statVal, ...(st.small ? { fontSize: 18 } : {}) }}>{st.val}</span>
-            <span style={s.statLabel}>{st.label}</span>
+          <div key={i} style={{ ...dashboardStyles.statCard, borderTop: `3px solid ${st.color}` }}>
+            <span style={dashboardStyles.statIcon}>{st.icon}</span>
+            <span style={{ ...dashboardStyles.statVal, ...(st.small ? { fontSize: 18 } : {}) }}>{st.val}</span>
+            <span style={dashboardStyles.statLabel}>{st.label}</span>
           </div>
         ))}
       </div>
 
-      {/* Tabs */}
-      <div style={s.tabsRow}>
+      <div style={dashboardStyles.tabsRow}>
         {(["turnos", "servicios", "horarios", "facturacion"] as const).map((tab) => (
-          <button key={tab} style={{ ...s.tab, ...(activeTab === tab ? s.tabActive : {}) }} onClick={() => setActiveTab(tab)}>
+          <button key={tab} style={{ ...dashboardStyles.tab, ...(activeTab === tab ? dashboardStyles.tabActive : {}) }} onClick={() => setActiveTab(tab)}>
             {tab === "turnos" ? "📆 Turnos" : tab === "servicios" ? "💅 Servicios" : tab === "horarios" ? "⏰ Horarios" : "💰 Facturación"}
           </button>
         ))}
       </div>
 
-      <main style={s.main}>
+      <main style={dashboardStyles.main}>
 
-        {/* ── TURNOS ── */}
         {activeTab === "turnos" && (
           <div className="fadeIn">
-            {/* Filtros */}
-            <div style={s.filterRow}>
-              <button onClick={() => setFilter("all")} style={{ ...s.filterBtn, ...(filter === "all" ? s.filterActive : {}) }}>📋 Todos</button>
-              <button onClick={() => setFilter("pending")} style={{ ...s.filterBtn, ...(filter === "pending" ? s.filterActive : {}) }}>⏳ Pendientes</button>
-              <button onClick={() => setFilter("today")} style={{ ...s.filterBtn, ...(filter === "today" ? s.filterActive : {}) }}>✅ Confirmados hoy</button>
+            <div style={dashboardStyles.filterRow}>
+              <button onClick={() => setFilter("all")} style={{ ...dashboardStyles.filterBtn, ...(filter === "all" ? dashboardStyles.filterActive : {}) }}>📋 Todos</button>
+              <button onClick={() => setFilter("pending")} style={{ ...dashboardStyles.filterBtn, ...(filter === "pending" ? dashboardStyles.filterActive : {}) }}>⏳ Pendientes</button>
+              <button onClick={() => setFilter("today")} style={{ ...dashboardStyles.filterBtn, ...(filter === "today" ? dashboardStyles.filterActive : {}) }}>✅ Confirmados hoy</button>
             </div>
 
-            <div style={s.weekScroll}>
+            <div style={dashboardStyles.weekScroll}>
               {weekDates.map((d) => {
                 const ds = formatDate(d);
                 const count = appointments.filter((a) => a.date === ds).length;
@@ -285,52 +276,52 @@ export default function PanelPage() {
                 return (
                   <div
                     key={ds}
-                    style={{ ...s.weekDay, ...(isSel ? s.weekDayActive : {}), ...(isToday && !isSel ? s.weekDayToday : {}) }}
+                    style={{ ...dashboardStyles.weekDay, ...(isSel ? dashboardStyles.weekDayActive : {}), ...(isToday && !isSel ? dashboardStyles.weekDayToday : {}) }}
                     className="card-lift"
                     onClick={() => setSelectedDate(ds)}
                   >
-                    <span style={{ ...s.wdName, ...(isSel ? { color: "#fff" } : {}) }}>{DAY_NAMES_SHORT[d.getDay()]}</span>
-                    <span style={{ ...s.wdNum, ...(isSel ? { color: "#fff" } : {}) }}>{d.getDate()}</span>
-                    {count > 0 && <span style={{ ...s.wdBadge, ...(isSel ? { background: "rgba(255,255,255,0.3)", color: "#fff" } : {}) }}>{count}</span>}
+                    <span style={{ ...dashboardStyles.wdName, ...(isSel ? { color: "#fff" } : {}) }}>{DAY_NAMES_SHORT[d.getDay()]}</span>
+                    <span style={{ ...dashboardStyles.wdNum, ...(isSel ? { color: "#fff" } : {}) }}>{d.getDate()}</span>
+                    {count > 0 && <span style={{ ...dashboardStyles.wdBadge, ...(isSel ? { background: "rgba(255,255,255,0.3)", color: "#fff" } : {}) }}>{count}</span>}
                   </div>
                 );
               })}
             </div>
 
-            <h3 style={s.secTitle}>
+            <h3 style={dashboardStyles.secTitle}>
               {DAY_NAMES_FULL[new Date(selectedDate + "T12:00:00").getDay()]} {new Date(selectedDate + "T12:00:00").getDate()} de {MONTH_NAMES[new Date(selectedDate + "T12:00:00").getMonth()]}
             </h3>
 
             {filteredAppointments.length === 0 ? (
-              <div style={s.emptyCard}>
+              <div style={dashboardStyles.emptyCard}>
                 <span style={{ fontSize: 38 }}>🌸</span>
-                <p style={s.emptyTxt}>Sin turnos para este día</p>
+                <p style={dashboardStyles.emptyTxt}>Sin turnos para este día</p>
               </div>
             ) : (
-              <div style={s.aptList}>
+              <div style={dashboardStyles.aptList}>
                 {filteredAppointments.map((apt) => (
-                  <div key={apt.id} style={{ ...s.aptCard, ...(apt.status === "confirmed" ? s.aptConfirmed : apt.status === "cancelled" ? s.aptCancelled : {}) }}>
-                    <div style={s.aptTimeCol}>
-                      <span style={s.aptTime}>{apt.time}</span>
-                      <span style={{ ...s.aptStatus, ...(apt.status === "confirmed" ? s.statusOk : apt.status === "cancelled" ? s.statusNo : s.statusWait) }}>
+                  <div key={apt.id} style={{ ...dashboardStyles.aptCard, ...(apt.status === "confirmed" ? dashboardStyles.aptConfirmed : apt.status === "cancelled" ? dashboardStyles.aptCancelled : {}) }}>
+                    <div style={dashboardStyles.aptTimeCol}>
+                      <span style={dashboardStyles.aptTime}>{apt.time}</span>
+                      <span style={{ ...dashboardStyles.aptStatus, ...(apt.status === "confirmed" ? dashboardStyles.statusOk : apt.status === "cancelled" ? dashboardStyles.statusNo : dashboardStyles.statusWait) }}>
                         {apt.status === "confirmed" ? "✓" : apt.status === "cancelled" ? "✗" : "⏳"}
                       </span>
                     </div>
-                    <div style={s.aptInfo}>
-                      <p style={s.aptName}>{apt.client_name}</p>
-                      <p style={s.aptSvc}>{apt.service_name}</p>
-                      <p style={s.aptProf}>👩‍💼 {apt.professional_name}</p>
-                      <p style={s.aptPrice}>${apt.price?.toLocaleString("es-AR")}</p>
+                    <div style={dashboardStyles.aptInfo}>
+                      <p style={dashboardStyles.aptName}>{apt.client_name}</p>
+                      <p style={dashboardStyles.aptSvc}>{apt.service_name}</p>
+                      <p style={dashboardStyles.aptProf}>👩‍💼 {apt.professional_name}</p>
+                      <p style={dashboardStyles.aptPrice}>${apt.price?.toLocaleString("es-AR")}</p>
                     </div>
                     {apt.status !== "cancelled" && (
-                      <div style={s.aptBtns}>
+                      <div style={dashboardStyles.aptBtns}>
                         {apt.status === "pending" && (
-                          <button style={s.btnConfirm} onClick={() => confirmAppointment(apt)}>✓ Confirmar</button>
+                          <button style={dashboardStyles.btnConfirmApt} onClick={() => confirmAppointment(apt)}>✓ Confirmar</button>
                         )}
                         {apt.status === "confirmed" && (
-                          <button style={s.btnComplete} onClick={() => completeAppointment(apt)}>✓ Completar</button>
+                          <button style={dashboardStyles.btnComplete} onClick={() => completeAppointment(apt)}>✓ Completar</button>
                         )}
-                        <button style={s.btnMove} onClick={() => { setMoveModal({ open: true, apt }); setMoveDate(apt.date); setMoveTime(apt.time); }}>📅 Mover</button>
+                        <button style={dashboardStyles.btnMove} onClick={() => { setMoveModal({ open: true, apt }); setMoveDate(apt.date); setMoveTime(apt.time); }}>📅 Mover</button>
                       </div>
                     )}
                   </div>
@@ -338,22 +329,21 @@ export default function PanelPage() {
               </div>
             )}
 
-            {/* Turnos completados recientes */}
             {completedAppointments.length > 0 && (
               <>
-                <h3 style={{ ...s.secTitle, marginTop: 30 }}>📋 Historial de turnos completados</h3>
-                <div style={s.aptList}>
+                <h3 style={{ ...dashboardStyles.secTitle, marginTop: 30 }}>📋 Historial de turnos completados</h3>
+                <div style={dashboardStyles.aptList}>
                   {completedAppointments.slice(0, 5).map((apt) => (
-                    <div key={apt.id} style={{ ...s.aptCard, opacity: 0.7 }}>
-                      <div style={s.aptTimeCol}>
-                        <span style={s.aptTime}>{apt.time}</span>
-                        <span style={{ ...s.aptStatus, background: "rgba(100,100,100,0.1)", color: "#888" }}>✓</span>
+                    <div key={apt.id} style={{ ...dashboardStyles.aptCard, opacity: 0.7 }}>
+                      <div style={dashboardStyles.aptTimeCol}>
+                        <span style={dashboardStyles.aptTime}>{apt.time}</span>
+                        <span style={{ ...dashboardStyles.aptStatus, background: "rgba(100,100,100,0.1)", color: "#888" }}>✓</span>
                       </div>
-                      <div style={s.aptInfo}>
-                        <p style={s.aptName}>{apt.client_name}</p>
-                        <p style={s.aptSvc}>{apt.service_name}</p>
-                        <p style={s.aptProf}>👩‍💼 {apt.professional_name}</p>
-                        <p style={s.aptPrice}>${apt.price?.toLocaleString("es-AR")}</p>
+                      <div style={dashboardStyles.aptInfo}>
+                        <p style={dashboardStyles.aptName}>{apt.client_name}</p>
+                        <p style={dashboardStyles.aptSvc}>{apt.service_name}</p>
+                        <p style={dashboardStyles.aptProf}>👩‍💼 {apt.professional_name}</p>
+                        <p style={dashboardStyles.aptPrice}>${apt.price?.toLocaleString("es-AR")}</p>
                       </div>
                     </div>
                   ))}
@@ -363,17 +353,17 @@ export default function PanelPage() {
 
             {topServices.length > 0 && (
               <>
-                <h3 style={{ ...s.secTitle, marginTop: 30 }}>🏆 Top Servicios del Mes</h3>
-                <div style={s.topList}>
+                <h3 style={{ ...dashboardStyles.secTitle, marginTop: 30 }}>🏆 Top Servicios del Mes</h3>
+                <div style={dashboardStyles.topList}>
                   {topServices.map((sv, i) => (
-                    <div key={sv.name} style={s.topItem}>
-                      <span style={s.topRank}>#{i + 1}</span>
-                      <div style={s.topInfo}>
-                        <div style={s.topName}>{sv.name}</div>
-                        <div style={s.topBarWrap}><div style={{ ...s.topBar, width: `${(sv.revenue / maxRev) * 100}%` }} /></div>
-                        <div style={s.topMeta}>
-                          <span style={s.topCount}>{sv.count} turno{sv.count !== 1 ? "s" : ""}</span>
-                          <span style={s.topRev}>${sv.revenue.toLocaleString("es-AR")}</span>
+                    <div key={sv.name} style={dashboardStyles.topItem}>
+                      <span style={dashboardStyles.topRank}>#{i + 1}</span>
+                      <div style={dashboardStyles.topInfo}>
+                        <div style={dashboardStyles.topName}>{sv.name}</div>
+                        <div style={dashboardStyles.topBarWrap}><div style={{ ...dashboardStyles.topBar, width: `${(sv.revenue / maxRev) * 100}%` }} /></div>
+                        <div style={dashboardStyles.topMeta}>
+                          <span style={dashboardStyles.topCount}>{sv.count} turno{sv.count !== 1 ? "s" : ""}</span>
+                          <span style={dashboardStyles.topRev}>${sv.revenue.toLocaleString("es-AR")}</span>
                         </div>
                       </div>
                     </div>
@@ -384,19 +374,18 @@ export default function PanelPage() {
           </div>
         )}
 
-        {/* ── SERVICIOS ── */}
         {activeTab === "servicios" && (
           <div className="fadeIn">
-            <h3 style={s.secTitle}>Servicios del salón</h3>
-            <div style={s.svcList}>
+            <h3 style={dashboardStyles.secTitle}>Servicios del salón</h3>
+            <div style={dashboardStyles.svcList}>
               {services.map((sv, i) => (
-                <div key={i} style={{ ...s.svcCard, ...(!sv.active ? s.svcOff : {}) }}>
+                <div key={i} style={{ ...dashboardStyles.svcCard, ...(!sv.active ? dashboardStyles.svcOff : {}) }}>
                   <div>
-                    <p style={s.svcName}>{sv.name}</p>
-                    <p style={s.svcPrice}>${sv.price.toLocaleString("es-AR")}</p>
+                    <p style={dashboardStyles.svcName}>{sv.name}</p>
+                    <p style={dashboardStyles.svcPrice}>${sv.price.toLocaleString("es-AR")}</p>
                   </div>
                   <button
-                    style={{ ...s.toggleBtn, ...(sv.active ? s.toggleOn : s.toggleOff) }}
+                    style={{ ...dashboardStyles.toggleBtn, ...(sv.active ? dashboardStyles.toggleOn : dashboardStyles.toggleOff) }}
                     onClick={() => setServices((prev) => prev.map((x, idx) => idx === i ? { ...x, active: !x.active } : x))}
                   >
                     {sv.active ? "● Activo" : "○ Oculto"}
@@ -405,100 +394,98 @@ export default function PanelPage() {
               ))}
             </div>
 
-            <h3 style={{ ...s.secTitle, marginTop: 28 }}>Agregar servicio</h3>
-            <div style={s.addForm}>
-              <input style={s.input} placeholder="Nombre del servicio" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
-              <input style={s.input} placeholder="Precio (ej: 10000)" inputMode="numeric" value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value.replace(/\D/g, ""))} />
-              <button style={s.btnAdd} onClick={addService}>+ Agregar servicio</button>
+            <h3 style={{ ...dashboardStyles.secTitle, marginTop: 28 }}>Agregar servicio</h3>
+            <div style={dashboardStyles.addForm}>
+              <input style={dashboardStyles.input} placeholder="Nombre del servicio" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
+              <input style={dashboardStyles.input} placeholder="Precio (ej: 10000)" inputMode="numeric" value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value.replace(/\D/g, ""))} />
+              <button style={dashboardStyles.btnAdd} onClick={addService}>+ Agregar servicio</button>
             </div>
           </div>
         )}
 
-        {/* ── HORARIOS ── */}
         {activeTab === "horarios" && (
           <div className="fadeIn">
-            <h3 style={s.secTitle}>Horarios globales</h3>
-            <p style={s.secSub}>Los horarios desactivados no estarán disponibles para ningún día.</p>
-            <div style={s.slotsGrid}>
+            <h3 style={dashboardStyles.secTitle}>Horarios globales</h3>
+            <p style={dashboardStyles.secSub}>Los horarios desactivados no estarán disponibles para ningún día.</p>
+            <div style={dashboardStyles.slotsGrid}>
               {ALL_TIME_SLOTS.map((slot) => {
                 const on = enabledSlots.includes(slot);
                 return (
-                  <div key={slot} style={{ ...s.slotCard, ...(on ? s.slotOn : s.slotOffCard) }} className="card-lift" onClick={() => toggleGlobalSlot(slot)}>
-                    <span style={s.slotTime}>{slot}</span>
+                  <div key={slot} style={{ ...dashboardStyles.slotCard, ...(on ? dashboardStyles.slotOn : dashboardStyles.slotOffCard) }} className="card-lift" onClick={() => toggleGlobalSlot(slot)}>
+                    <span style={dashboardStyles.slotTime}>{slot}</span>
                     <span style={{ fontSize: 16 }}>{on ? "🟢" : "⭕"}</span>
                   </div>
                 );
               })}
             </div>
-            <div style={s.slotFooter}>
-              <span style={s.slotCount}>{enabledSlots.length}/{ALL_TIME_SLOTS.length} activos</span>
-              <button style={s.resetBtn} onClick={() => setEnabledSlots(ALL_TIME_SLOTS)}>Activar todos</button>
+            <div style={dashboardStyles.slotFooter}>
+              <span style={dashboardStyles.slotCount}>{enabledSlots.length}/{ALL_TIME_SLOTS.length} activos</span>
+              <button style={dashboardStyles.resetBtn} onClick={() => setEnabledSlots(ALL_TIME_SLOTS)}>Activar todos</button>
             </div>
 
-            <h3 style={{ ...s.secTitle, marginTop: 28 }}>Bloqueos por día específico</h3>
-            <p style={s.secSub}>Seleccioná un día para bloquear horarios específicos.</p>
-            <div style={s.weekScroll}>
+            <h3 style={{ ...dashboardStyles.secTitle, marginTop: 28 }}>Bloqueos por día específico</h3>
+            <p style={dashboardStyles.secSub}>Seleccioná un día para bloquear horarios específicos.</p>
+            <div style={dashboardStyles.weekScroll}>
               {weekDates.map((d) => {
                 const ds = formatDate(d);
                 const isSel = selectedDayForBlocking === ds;
                 return (
                   <div
                     key={ds}
-                    style={{ ...s.weekDay, ...(isSel ? s.weekDayActive : {}) }}
+                    style={{ ...dashboardStyles.weekDay, ...(isSel ? dashboardStyles.weekDayActive : {}) }}
                     className="card-lift"
                     onClick={() => setSelectedDayForBlocking(ds)}
                   >
-                    <span style={{ ...s.wdName, ...(isSel ? { color: "#fff" } : {}) }}>{DAY_NAMES_SHORT[d.getDay()]}</span>
-                    <span style={{ ...s.wdNum, ...(isSel ? { color: "#fff" } : {}) }}>{d.getDate()}</span>
+                    <span style={{ ...dashboardStyles.wdName, ...(isSel ? { color: "#fff" } : {}) }}>{DAY_NAMES_SHORT[d.getDay()]}</span>
+                    <span style={{ ...dashboardStyles.wdNum, ...(isSel ? { color: "#fff" } : {}) }}>{d.getDate()}</span>
                   </div>
                 );
               })}
             </div>
             {selectedDayForBlocking && (
-              <div style={s.slotsGrid}>
+              <div style={dashboardStyles.slotsGrid}>
                 {ALL_TIME_SLOTS.map((slot) => {
                   const blocked = isSlotBlockedForDay(selectedDayForBlocking, slot);
                   const globalEnabled = enabledSlots.includes(slot);
                   return (
                     <div
                       key={slot}
-                      style={{ ...s.slotCard, ...(blocked ? s.slotBlockedCard : (globalEnabled ? s.slotOn : s.slotOffCard)) }}
+                      style={{ ...dashboardStyles.slotCard, ...(blocked ? dashboardStyles.slotBlockedCard : (globalEnabled ? dashboardStyles.slotOn : dashboardStyles.slotOffCard)) }}
                       className="card-lift"
                       onClick={() => toggleSlotForDay(selectedDayForBlocking, slot)}
                     >
-                      <span style={s.slotTime}>{slot}</span>
+                      <span style={dashboardStyles.slotTime}>{slot}</span>
                       <span style={{ fontSize: 16 }}>{blocked ? "🔴" : (globalEnabled ? "🟢" : "⭕")}</span>
                     </div>
                   );
                 })}
               </div>
             )}
-            <div style={s.slotFooter}>
-              <span style={s.slotCount}>{blockedSlotsByDay.filter(bs => bs.date === selectedDayForBlocking).length} bloqueados para este día</span>
+            <div style={dashboardStyles.slotFooter}>
+              <span style={dashboardStyles.slotCount}>{blockedSlotsByDay.filter(bs => bs.date === selectedDayForBlocking).length} bloqueados para este día</span>
             </div>
           </div>
         )}
 
-        {/* ── FACTURACIÓN ── */}
         {activeTab === "facturacion" && (
           <div className="fadeIn">
-            <div style={s.billingPeriodRow}>
-              <button onClick={() => setBillingPeriod("day")} style={{ ...s.billingPeriodBtn, ...(billingPeriod === "day" ? s.billingPeriodActive : {}) }}>📅 Por día</button>
-              <button onClick={() => setBillingPeriod("week")} style={{ ...s.billingPeriodBtn, ...(billingPeriod === "week" ? s.billingPeriodActive : {}) }}>📆 Por semana</button>
-              <button onClick={() => setBillingPeriod("month")} style={{ ...s.billingPeriodBtn, ...(billingPeriod === "month" ? s.billingPeriodActive : {}) }}>📊 Por mes</button>
+            <div style={dashboardStyles.billingPeriodRow}>
+              <button onClick={() => setBillingPeriod("day")} style={{ ...dashboardStyles.billingPeriodBtn, ...(billingPeriod === "day" ? dashboardStyles.billingPeriodActive : {}) }}>📅 Por día</button>
+              <button onClick={() => setBillingPeriod("week")} style={{ ...dashboardStyles.billingPeriodBtn, ...(billingPeriod === "week" ? dashboardStyles.billingPeriodActive : {}) }}>📆 Por semana</button>
+              <button onClick={() => setBillingPeriod("month")} style={{ ...dashboardStyles.billingPeriodBtn, ...(billingPeriod === "month" ? dashboardStyles.billingPeriodActive : {}) }}>📊 Por mes</button>
             </div>
             {billingData.map((data, idx) => (
-              <div key={idx} style={s.billingCard}>
-                <div style={s.billingHeader}>
-                  <span style={s.billingDate}>{data.date}</span>
-                  <span style={s.billingTotal}>💰 ${data.total.toLocaleString("es-AR")}</span>
+              <div key={idx} style={dashboardStyles.billingCard}>
+                <div style={dashboardStyles.billingHeader}>
+                  <span style={dashboardStyles.billingDate}>{data.date}</span>
+                  <span style={dashboardStyles.billingTotal}>💰 ${data.total.toLocaleString("es-AR")}</span>
                 </div>
                 {data.appointments.length > 0 && (
-                  <div style={s.billingDetails}>
+                  <div style={dashboardStyles.billingDetails}>
                     {data.appointments.map((apt, i) => (
-                      <div key={i} style={s.billingItem}>
-                        <span style={s.billingItemName}>{apt.client_name} - {apt.service_name}</span>
-                        <span style={s.billingItemPrice}>${apt.price?.toLocaleString("es-AR")}</span>
+                      <div key={i} style={dashboardStyles.billingItem}>
+                        <span style={dashboardStyles.billingItemName}>{apt.client_name} - {apt.service_name}</span>
+                        <span style={dashboardStyles.billingItemPrice}>${apt.price?.toLocaleString("es-AR")}</span>
                       </div>
                     ))}
                   </div>
@@ -506,32 +493,31 @@ export default function PanelPage() {
               </div>
             ))}
             {billingData.length === 0 && (
-              <div style={s.emptyCard}>
+              <div style={dashboardStyles.emptyCard}>
                 <span style={{ fontSize: 38 }}>📭</span>
-                <p style={s.emptyTxt}>No hay turnos completados en este período</p>
+                <p style={dashboardStyles.emptyTxt}>No hay turnos completados en este período</p>
               </div>
             )}
           </div>
         )}
       </main>
 
-      {/* Move Modal */}
       {moveModal.open && moveModal.apt && (
-        <div style={s.overlay} onClick={() => setMoveModal({ open: false, apt: null })}>
-          <div style={s.modal} onClick={(e) => e.stopPropagation()} className="fadeIn">
-            <h3 style={s.modalTitle}>📅 Reprogramar turno</h3>
-            <p style={s.modalSub}>{moveModal.apt.client_name} · {moveModal.apt.service_name}</p>
-            <label style={s.label}>Nueva fecha</label>
-            <input type="date" style={s.input} value={moveDate} onChange={(e) => setMoveDate(e.target.value)} min={formatDate(new Date())} />
-            <label style={{ ...s.label, marginTop: 14 }}>Nuevo horario</label>
-            <div style={s.modalSlots}>
+        <div style={dashboardStyles.overlay} onClick={() => setMoveModal({ open: false, apt: null })}>
+          <div style={dashboardStyles.modal} onClick={(e) => e.stopPropagation()} className="fadeIn">
+            <h3 style={dashboardStyles.modalTitle}>📅 Reprogramar turno</h3>
+            <p style={dashboardStyles.modalSub}>{moveModal.apt.client_name} · {moveModal.apt.service_name}</p>
+            <label style={dashboardStyles.label}>Nueva fecha</label>
+            <input type="date" style={dashboardStyles.input} value={moveDate} onChange={(e) => setMoveDate(e.target.value)} min={formatDate(new Date())} />
+            <label style={{ ...dashboardStyles.label, marginTop: 14 }}>Nuevo horario</label>
+            <div style={dashboardStyles.modalSlots}>
               {ALL_TIME_SLOTS.map((t) => (
-                <button key={t} style={{ ...s.modalSlotBtn, ...(moveTime === t ? s.modalSlotActive : {}) }} onClick={() => setMoveTime(t)}>{t}</button>
+                <button key={t} style={{ ...dashboardStyles.modalSlotBtn, ...(moveTime === t ? dashboardStyles.modalSlotActive : {}) }} onClick={() => setMoveTime(t)}>{t}</button>
               ))}
             </div>
-            <div style={s.modalActions}>
-              <button style={s.btnCancel} onClick={() => setMoveModal({ open: false, apt: null })}>Cancelar</button>
-              <button style={s.btnConfirm} onClick={moveAppointment} disabled={movingId}>{movingId ? "Guardando..." : "✓ Confirmar"}</button>
+            <div style={dashboardStyles.modalActions}>
+              <button style={dashboardStyles.btnModalCancel} onClick={() => setMoveModal({ open: false, apt: null })}>Cancelar</button>
+              <button style={dashboardStyles.btnModalConfirm} onClick={moveAppointment} disabled={movingId}>{movingId ? "Guardando..." : "✓ Confirmar"}</button>
             </div>
           </div>
         </div>
@@ -540,8 +526,7 @@ export default function PanelPage() {
   );
 }
 
-/* ─── CSS ─── */
-const css = `
+const globalCSS = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #fff0f5; }
@@ -556,7 +541,7 @@ const css = `
   ::-webkit-scrollbar-thumb { background: #ffb3d1; border-radius: 4px; }
 `;
 
-const p: Record<string, React.CSSProperties> = {
+const pinStyles: Record<string, React.CSSProperties> = {
   page: { minHeight: "100vh", background: "linear-gradient(160deg, #fff0f5 0%, #fdf2f8 60%, #ffe4ec 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Plus Jakarta Sans', sans-serif", padding: 20 },
   card: { background: "rgba(255,255,255,0.9)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1.5px solid rgba(255,180,210,0.4)", borderRadius: 28, padding: "48px 36px", textAlign: "center", width: "100%", maxWidth: 360, boxShadow: "0 24px 64px rgba(233,30,99,0.12)" },
   logoRow: { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 4 },
@@ -572,7 +557,7 @@ const p: Record<string, React.CSSProperties> = {
   footer: { fontSize: 11, color: "#d4aec1", marginTop: 22 },
 };
 
-const s: Record<string, React.CSSProperties> = {
+const dashboardStyles: Record<string, React.CSSProperties> = {
   page: { minHeight: "100vh", background: "linear-gradient(160deg, #fff0f5 0%, #fdf2f8 60%, #ffe4ec 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e" },
   header: { background: "rgba(255,255,255,0.8)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,180,210,0.2)", padding: "0 20px", position: "sticky", top: 0, zIndex: 100 },
   headerInner: { maxWidth: 700, margin: "0 auto", padding: "14px 0", display: "flex", justifyContent: "space-between", alignItems: "center" },
@@ -620,7 +605,7 @@ const s: Record<string, React.CSSProperties> = {
   aptProf: { fontSize: 12, color: "#c77dab", marginBottom: 4 },
   aptPrice: { fontSize: 15, fontWeight: 800, color: "#e91e63" },
   aptBtns: { display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 },
-  btnConfirm: { background: "linear-gradient(135deg, #10b981, #059669)", border: "none", borderRadius: 12, color: "#fff", fontSize: 12, fontWeight: 700, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" },
+  btnConfirmApt: { background: "linear-gradient(135deg, #10b981, #059669)", border: "none", borderRadius: 12, color: "#fff", fontSize: 12, fontWeight: 700, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" },
   btnComplete: { background: "linear-gradient(135deg, #6b7280, #4b5563)", border: "none", borderRadius: 12, color: "#fff", fontSize: 12, fontWeight: 700, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" },
   btnMove: { background: "rgba(255,240,247,0.9)", border: "1px solid rgba(255,110,180,0.35)", borderRadius: 12, color: "#e91e63", fontSize: 12, fontWeight: 600, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" },
   topList: { display: "flex", flexDirection: "column", gap: 10 },
@@ -662,8 +647,8 @@ const s: Record<string, React.CSSProperties> = {
   modalSlotBtn: { background: "rgba(255,240,247,0.8)", border: "1.5px solid rgba(255,180,210,0.4)", borderRadius: 12, color: "#2d1b2e", fontSize: 13, fontWeight: 600, padding: "8px 12px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", transition: "all 0.15s" },
   modalSlotActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", color: "#fff", boxShadow: "0 4px 14px rgba(233,30,99,0.3)" },
   modalActions: { display: "flex", gap: 10 },
-  btnCancel: { flex: 1, background: "rgba(245,235,240,0.9)", border: "1.5px solid rgba(200,170,185,0.4)", borderRadius: 14, color: "#a0738c", fontSize: 14, fontWeight: 600, padding: "13px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
-  btnConfirm: { flex: 1, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 14, color: "#fff", fontSize: 14, fontWeight: 800, padding: "13px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
+  btnModalCancel: { flex: 1, background: "rgba(245,235,240,0.9)", border: "1.5px solid rgba(200,170,185,0.4)", borderRadius: 14, color: "#a0738c", fontSize: 14, fontWeight: 600, padding: "13px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
+  btnModalConfirm: { flex: 1, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 14, color: "#fff", fontSize: 14, fontWeight: 800, padding: "13px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
   billingPeriodRow: { display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" },
   billingPeriodBtn: { background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(255,180,210,0.3)", borderRadius: 30, padding: "8px 20px", fontSize: 13, fontWeight: 600, color: "#c77dab", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
   billingPeriodActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", color: "#fff" },
