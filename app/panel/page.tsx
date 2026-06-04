@@ -33,13 +33,16 @@ type Appointment = {
   date: string; time: string; duration_minutes: number; price: number; status: string;
 };
 type Service = { name: string; price: number; active: boolean; };
+type BlockedSlot = { date: string; time: string };
 
 export default function PanelPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
-  const [activeTab, setActiveTab] = useState<"turnos"|"servicios"|"horarios">("turnos");
+  const [activeTab, setActiveTab] = useState<"turnos"|"servicios"|"horarios"|"facturacion">("turnos");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [completedAppointments, setCompletedAppointments] = useState<Appointment[]>([]);
+  const [filter, setFilter] = useState<"all"|"pending"|"today">("all");
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [weekDates] = useState(getWeekDates());
   const [services, setServices] = useState<Service[]>([
@@ -49,6 +52,8 @@ export default function PanelPage() {
     { name: "Depilación Piernas", price: 7500, active: true },
   ]);
   const [enabledSlots, setEnabledSlots] = useState<string[]>(ALL_TIME_SLOTS);
+  const [blockedSlotsByDay, setBlockedSlotsByDay] = useState<BlockedSlot[]>([]);
+  const [selectedDayForBlocking, setSelectedDayForBlocking] = useState<string>("");
   const [newServiceName, setNewServiceName] = useState("");
   const [newServicePrice, setNewServicePrice] = useState("");
   const [moveModal, setMoveModal] = useState<{ open: boolean; apt: Appointment | null }>({ open: false, apt: null });
@@ -59,21 +64,29 @@ export default function PanelPage() {
   const [statsPending, setStatsPending] = useState(0);
   const [statsRevenue, setStatsRevenue] = useState(0);
   const [topServices, setTopServices] = useState<{ name: string; count: number; revenue: number }[]>([]);
+  
+  // Estado para facturación
+  const [billingPeriod, setBillingPeriod] = useState<"day"|"week"|"month">("month");
+  const [billingData, setBillingData] = useState<{ date: string; total: number; appointments: Appointment[] }[]>([]);
 
   const loadAppointments = useCallback(async () => {
     const { data } = await supabase.from("appointments").select("*").order("date").order("time");
     if (data) {
-      setAppointments(data as Appointment[]);
+      const all = data as Appointment[];
+      setAppointments(all.filter(a => a.status !== "completed" && a.status !== "cancelled"));
+      setCompletedAppointments(all.filter(a => a.status === "completed" || a.status === "cancelled"));
       const today = formatDate(new Date());
-      setStatsToday(data.filter((a: Appointment) => a.date === today).length);
-      setStatsPending(data.filter((a: Appointment) => a.status === "pending").length);
+      setStatsToday(all.filter(a => a.date === today && a.status !== "cancelled").length);
+      setStatsPending(all.filter(a => a.status === "pending").length);
       const thisMonth = new Date().toISOString().slice(0, 7);
-      setStatsRevenue(data.filter((a: Appointment) => a.date.startsWith(thisMonth) && a.status === "confirmed").reduce((sum: number, a: Appointment) => sum + (a.price || 0), 0));
+      setStatsRevenue(all.filter(a => a.date.startsWith(thisMonth) && a.status === "confirmed").reduce((sum: number, a: Appointment) => sum + (a.price || 0), 0));
       const svcMap: Record<string, { count: number; revenue: number }> = {};
-      data.forEach((a: Appointment) => {
-        if (!svcMap[a.service_name]) svcMap[a.service_name] = { count: 0, revenue: 0 };
-        svcMap[a.service_name].count++;
-        svcMap[a.service_name].revenue += a.price || 0;
+      all.forEach((a: Appointment) => {
+        if (a.status === "completed" || a.status === "confirmed") {
+          if (!svcMap[a.service_name]) svcMap[a.service_name] = { count: 0, revenue: 0 };
+          svcMap[a.service_name].count++;
+          svcMap[a.service_name].revenue += a.price || 0;
+        }
       });
       setTopServices(Object.entries(svcMap).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.revenue - a.revenue).slice(0, 4));
     }
@@ -86,7 +99,15 @@ export default function PanelPage() {
     else { setPinError(true); setPin(""); }
   }
 
-  const dayAppointments = appointments.filter((a) => a.date === selectedDate);
+  // Filtrar turnos según el filtro seleccionado
+  const getFilteredAppointments = () => {
+    const dayAppointments = appointments.filter(a => a.date === selectedDate);
+    if (filter === "pending") return dayAppointments.filter(a => a.status === "pending");
+    if (filter === "today") return dayAppointments.filter(a => a.status === "confirmed");
+    return dayAppointments;
+  };
+
+  const filteredAppointments = getFilteredAppointments();
 
   async function confirmAppointment(apt: Appointment) {
     await supabase.from("appointments").update({ status: "confirmed" }).eq("id", apt.id);
@@ -97,6 +118,11 @@ export default function PanelPage() {
       `💅 ${apt.service_name}\n👩‍💼 ${apt.professional_name}\n📆 ${d}/${m}/${y} a las ${apt.time}\n📍 Cairo 83, Monte Grande\n\n¡Te esperamos! ✨💕`
     );
     window.open(`https://wa.me/${apt.client_phone}?text=${msg}`, "_blank");
+  }
+
+  async function completeAppointment(apt: Appointment) {
+    await supabase.from("appointments").update({ status: "completed" }).eq("id", apt.id);
+    loadAppointments();
   }
 
   async function moveAppointment() {
@@ -115,7 +141,20 @@ export default function PanelPage() {
     loadAppointments();
   }
 
-  function toggleSlot(slot: string) {
+  // Bloquear/desbloquear horario para un día específico
+  const isSlotBlockedForDay = (date: string, time: string) => {
+    return blockedSlotsByDay.some(bs => bs.date === date && bs.time === time);
+  };
+
+  const toggleSlotForDay = (date: string, time: string) => {
+    if (isSlotBlockedForDay(date, time)) {
+      setBlockedSlotsByDay(prev => prev.filter(bs => !(bs.date === date && bs.time === time)));
+    } else {
+      setBlockedSlotsByDay(prev => [...prev, { date, time }]);
+    }
+  };
+
+  function toggleGlobalSlot(slot: string) {
     setEnabledSlots((prev) => prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot].sort());
   }
 
@@ -125,9 +164,39 @@ export default function PanelPage() {
     setNewServiceName(""); setNewServicePrice("");
   }
 
+  // Generar datos de facturación según el período seleccionado
+  useEffect(() => {
+    if (!authenticated) return;
+    const generateBillingData = () => {
+      const allCompleted = [...appointments, ...completedAppointments].filter(a => a.status === "completed");
+      if (billingPeriod === "day") {
+        const today = formatDate(new Date());
+        const dayData = allCompleted.filter(a => a.date === today);
+        setBillingData([{ date: "Hoy", total: dayData.reduce((s, a) => s + (a.price || 0), 0), appointments: dayData }]);
+      } else if (billingPeriod === "week") {
+        const weekData: Record<string, { total: number; appointments: Appointment[] }> = {};
+        weekDates.forEach(d => {
+          const ds = formatDate(d);
+          const dayApps = allCompleted.filter(a => a.date === ds);
+          weekData[ds] = { total: dayApps.reduce((s, a) => s + (a.price || 0), 0), appointments: dayApps };
+        });
+        setBillingData(Object.entries(weekData).map(([date, data]) => ({ date, ...data })));
+      } else {
+        const monthData: Record<string, { total: number; appointments: Appointment[] }> = {};
+        allCompleted.forEach(a => {
+          const monthKey = a.date.slice(0, 7);
+          if (!monthData[monthKey]) monthData[monthKey] = { total: 0, appointments: [] };
+          monthData[monthKey].total += a.price || 0;
+          monthData[monthKey].appointments.push(a);
+        });
+        setBillingData(Object.entries(monthData).map(([date, data]) => ({ date, ...data })).sort((a, b) => b.date.localeCompare(a.date)));
+      }
+    };
+    generateBillingData();
+  }, [authenticated, appointments, completedAppointments, billingPeriod, weekDates]);
+
   const maxRev = topServices[0]?.revenue || 1;
 
-  /* ─── PIN Screen ─── */
   if (!authenticated) {
     return (
       <div style={p.page}>
@@ -156,7 +225,6 @@ export default function PanelPage() {
     );
   }
 
-  /* ─── Dashboard ─── */
   return (
     <div style={s.page}>
       <style>{css}</style>
@@ -189,9 +257,9 @@ export default function PanelPage() {
 
       {/* Tabs */}
       <div style={s.tabsRow}>
-        {(["turnos", "servicios", "horarios"] as const).map((tab) => (
+        {(["turnos", "servicios", "horarios", "facturacion"] as const).map((tab) => (
           <button key={tab} style={{ ...s.tab, ...(activeTab === tab ? s.tabActive : {}) }} onClick={() => setActiveTab(tab)}>
-            {tab === "turnos" ? "📆 Turnos" : tab === "servicios" ? "💅 Servicios" : "⏰ Horarios"}
+            {tab === "turnos" ? "📆 Turnos" : tab === "servicios" ? "💅 Servicios" : tab === "horarios" ? "⏰ Horarios" : "💰 Facturación"}
           </button>
         ))}
       </div>
@@ -201,6 +269,13 @@ export default function PanelPage() {
         {/* ── TURNOS ── */}
         {activeTab === "turnos" && (
           <div className="fadeIn">
+            {/* Filtros */}
+            <div style={s.filterRow}>
+              <button onClick={() => setFilter("all")} style={{ ...s.filterBtn, ...(filter === "all" ? s.filterActive : {}) }}>📋 Todos</button>
+              <button onClick={() => setFilter("pending")} style={{ ...s.filterBtn, ...(filter === "pending" ? s.filterActive : {}) }}>⏳ Pendientes</button>
+              <button onClick={() => setFilter("today")} style={{ ...s.filterBtn, ...(filter === "today" ? s.filterActive : {}) }}>✅ Confirmados hoy</button>
+            </div>
+
             <div style={s.weekScroll}>
               {weekDates.map((d) => {
                 const ds = formatDate(d);
@@ -226,14 +301,14 @@ export default function PanelPage() {
               {DAY_NAMES_FULL[new Date(selectedDate + "T12:00:00").getDay()]} {new Date(selectedDate + "T12:00:00").getDate()} de {MONTH_NAMES[new Date(selectedDate + "T12:00:00").getMonth()]}
             </h3>
 
-            {dayAppointments.length === 0 ? (
+            {filteredAppointments.length === 0 ? (
               <div style={s.emptyCard}>
                 <span style={{ fontSize: 38 }}>🌸</span>
                 <p style={s.emptyTxt}>Sin turnos para este día</p>
               </div>
             ) : (
               <div style={s.aptList}>
-                {dayAppointments.map((apt) => (
+                {filteredAppointments.map((apt) => (
                   <div key={apt.id} style={{ ...s.aptCard, ...(apt.status === "confirmed" ? s.aptConfirmed : apt.status === "cancelled" ? s.aptCancelled : {}) }}>
                     <div style={s.aptTimeCol}>
                       <span style={s.aptTime}>{apt.time}</span>
@@ -249,13 +324,41 @@ export default function PanelPage() {
                     </div>
                     {apt.status !== "cancelled" && (
                       <div style={s.aptBtns}>
-                        <button style={s.btnConfirm} onClick={() => confirmAppointment(apt)}>✓ Confirmar</button>
+                        {apt.status === "pending" && (
+                          <button style={s.btnConfirm} onClick={() => confirmAppointment(apt)}>✓ Confirmar</button>
+                        )}
+                        {apt.status === "confirmed" && (
+                          <button style={s.btnComplete} onClick={() => completeAppointment(apt)}>✓ Completar</button>
+                        )}
                         <button style={s.btnMove} onClick={() => { setMoveModal({ open: true, apt }); setMoveDate(apt.date); setMoveTime(apt.time); }}>📅 Mover</button>
                       </div>
                     )}
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* Turnos completados recientes */}
+            {completedAppointments.length > 0 && (
+              <>
+                <h3 style={{ ...s.secTitle, marginTop: 30 }}>📋 Historial de turnos completados</h3>
+                <div style={s.aptList}>
+                  {completedAppointments.slice(0, 5).map((apt) => (
+                    <div key={apt.id} style={{ ...s.aptCard, opacity: 0.7 }}>
+                      <div style={s.aptTimeCol}>
+                        <span style={s.aptTime}>{apt.time}</span>
+                        <span style={{ ...s.aptStatus, background: "rgba(100,100,100,0.1)", color: "#888" }}>✓</span>
+                      </div>
+                      <div style={s.aptInfo}>
+                        <p style={s.aptName}>{apt.client_name}</p>
+                        <p style={s.aptSvc}>{apt.service_name}</p>
+                        <p style={s.aptProf}>👩‍💼 {apt.professional_name}</p>
+                        <p style={s.aptPrice}>${apt.price?.toLocaleString("es-AR")}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
 
             {topServices.length > 0 && (
@@ -314,13 +417,13 @@ export default function PanelPage() {
         {/* ── HORARIOS ── */}
         {activeTab === "horarios" && (
           <div className="fadeIn">
-            <h3 style={s.secTitle}>Horarios disponibles</h3>
-            <p style={s.secSub}>Las clientas solo verán los horarios activos al reservar.</p>
+            <h3 style={s.secTitle}>Horarios globales</h3>
+            <p style={s.secSub}>Los horarios desactivados no estarán disponibles para ningún día.</p>
             <div style={s.slotsGrid}>
               {ALL_TIME_SLOTS.map((slot) => {
                 const on = enabledSlots.includes(slot);
                 return (
-                  <div key={slot} style={{ ...s.slotCard, ...(on ? s.slotOn : s.slotOffCard) }} className="card-lift" onClick={() => toggleSlot(slot)}>
+                  <div key={slot} style={{ ...s.slotCard, ...(on ? s.slotOn : s.slotOffCard) }} className="card-lift" onClick={() => toggleGlobalSlot(slot)}>
                     <span style={s.slotTime}>{slot}</span>
                     <span style={{ fontSize: 16 }}>{on ? "🟢" : "⭕"}</span>
                   </div>
@@ -331,6 +434,83 @@ export default function PanelPage() {
               <span style={s.slotCount}>{enabledSlots.length}/{ALL_TIME_SLOTS.length} activos</span>
               <button style={s.resetBtn} onClick={() => setEnabledSlots(ALL_TIME_SLOTS)}>Activar todos</button>
             </div>
+
+            <h3 style={{ ...s.secTitle, marginTop: 28 }}>Bloqueos por día específico</h3>
+            <p style={s.secSub}>Seleccioná un día para bloquear horarios específicos.</p>
+            <div style={s.weekScroll}>
+              {weekDates.map((d) => {
+                const ds = formatDate(d);
+                const isSel = selectedDayForBlocking === ds;
+                return (
+                  <div
+                    key={ds}
+                    style={{ ...s.weekDay, ...(isSel ? s.weekDayActive : {}) }}
+                    className="card-lift"
+                    onClick={() => setSelectedDayForBlocking(ds)}
+                  >
+                    <span style={{ ...s.wdName, ...(isSel ? { color: "#fff" } : {}) }}>{DAY_NAMES_SHORT[d.getDay()]}</span>
+                    <span style={{ ...s.wdNum, ...(isSel ? { color: "#fff" } : {}) }}>{d.getDate()}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {selectedDayForBlocking && (
+              <div style={s.slotsGrid}>
+                {ALL_TIME_SLOTS.map((slot) => {
+                  const blocked = isSlotBlockedForDay(selectedDayForBlocking, slot);
+                  const globalEnabled = enabledSlots.includes(slot);
+                  return (
+                    <div
+                      key={slot}
+                      style={{ ...s.slotCard, ...(blocked ? s.slotBlockedCard : (globalEnabled ? s.slotOn : s.slotOffCard)) }}
+                      className="card-lift"
+                      onClick={() => toggleSlotForDay(selectedDayForBlocking, slot)}
+                    >
+                      <span style={s.slotTime}>{slot}</span>
+                      <span style={{ fontSize: 16 }}>{blocked ? "🔴" : (globalEnabled ? "🟢" : "⭕")}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div style={s.slotFooter}>
+              <span style={s.slotCount}>{blockedSlotsByDay.filter(bs => bs.date === selectedDayForBlocking).length} bloqueados para este día</span>
+            </div>
+          </div>
+        )}
+
+        {/* ── FACTURACIÓN ── */}
+        {activeTab === "facturacion" && (
+          <div className="fadeIn">
+            <div style={s.billingPeriodRow}>
+              <button onClick={() => setBillingPeriod("day")} style={{ ...s.billingPeriodBtn, ...(billingPeriod === "day" ? s.billingPeriodActive : {}) }}>📅 Por día</button>
+              <button onClick={() => setBillingPeriod("week")} style={{ ...s.billingPeriodBtn, ...(billingPeriod === "week" ? s.billingPeriodActive : {}) }}>📆 Por semana</button>
+              <button onClick={() => setBillingPeriod("month")} style={{ ...s.billingPeriodBtn, ...(billingPeriod === "month" ? s.billingPeriodActive : {}) }}>📊 Por mes</button>
+            </div>
+            {billingData.map((data, idx) => (
+              <div key={idx} style={s.billingCard}>
+                <div style={s.billingHeader}>
+                  <span style={s.billingDate}>{data.date}</span>
+                  <span style={s.billingTotal}>💰 ${data.total.toLocaleString("es-AR")}</span>
+                </div>
+                {data.appointments.length > 0 && (
+                  <div style={s.billingDetails}>
+                    {data.appointments.map((apt, i) => (
+                      <div key={i} style={s.billingItem}>
+                        <span style={s.billingItemName}>{apt.client_name} - {apt.service_name}</span>
+                        <span style={s.billingItemPrice}>${apt.price?.toLocaleString("es-AR")}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            {billingData.length === 0 && (
+              <div style={s.emptyCard}>
+                <span style={{ fontSize: 38 }}>📭</span>
+                <p style={s.emptyTxt}>No hay turnos completados en este período</p>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -376,7 +556,6 @@ const css = `
   ::-webkit-scrollbar-thumb { background: #ffb3d1; border-radius: 4px; }
 `;
 
-/* ─── PIN styles ─── */
 const p: Record<string, React.CSSProperties> = {
   page: { minHeight: "100vh", background: "linear-gradient(160deg, #fff0f5 0%, #fdf2f8 60%, #ffe4ec 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Plus Jakarta Sans', sans-serif", padding: 20 },
   card: { background: "rgba(255,255,255,0.9)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1.5px solid rgba(255,180,210,0.4)", borderRadius: 28, padding: "48px 36px", textAlign: "center", width: "100%", maxWidth: 360, boxShadow: "0 24px 64px rgba(233,30,99,0.12)" },
@@ -393,10 +572,8 @@ const p: Record<string, React.CSSProperties> = {
   footer: { fontSize: 11, color: "#d4aec1", marginTop: 22 },
 };
 
-/* ─── Dashboard styles ─── */
 const s: Record<string, React.CSSProperties> = {
   page: { minHeight: "100vh", background: "linear-gradient(160deg, #fff0f5 0%, #fdf2f8 60%, #ffe4ec 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e" },
-
   header: { background: "rgba(255,255,255,0.8)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,180,210,0.2)", padding: "0 20px", position: "sticky", top: 0, zIndex: 100 },
   headerInner: { maxWidth: 700, margin: "0 auto", padding: "14px 0", display: "flex", justifyContent: "space-between", alignItems: "center" },
   logoRow: { display: "flex", alignItems: "center", gap: 8 },
@@ -404,19 +581,18 @@ const s: Record<string, React.CSSProperties> = {
   logoTxt: { fontSize: 20, fontWeight: 800, background: "linear-gradient(135deg, #ff4d8c, #e91e63)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" },
   headerSub: { fontSize: 11, color: "#c77dab", fontWeight: 500, textAlign: "center", padding: "0 0 10px" },
   logoutBtn: { background: "rgba(255,240,247,0.9)", border: "1px solid rgba(255,180,210,0.4)", borderRadius: 12, color: "#e91e63", fontSize: 13, fontWeight: 600, padding: "8px 16px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
-
   statsRow: { display: "flex", gap: 12, padding: "20px 16px 0", overflowX: "auto", maxWidth: 700, margin: "0 auto", width: "100%" },
   statCard: { flex: "1 0 120px", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1.5px solid rgba(255,180,210,0.25)", borderRadius: 20, padding: "16px", display: "flex", flexDirection: "column", gap: 4, boxShadow: "0 4px 20px rgba(233,30,99,0.07)", minWidth: 120 },
   statIcon: { fontSize: 22 },
   statVal: { fontSize: 26, fontWeight: 800, color: "#2d1b2e", lineHeight: 1 },
   statLabel: { fontSize: 11, color: "#a0738c", fontWeight: 500 },
-
-  tabsRow: { display: "flex", gap: 8, padding: "16px 16px 0", maxWidth: 700, margin: "0 auto", width: "100%" },
+  tabsRow: { display: "flex", gap: 8, padding: "16px 16px 0", maxWidth: 700, margin: "0 auto", width: "100%", flexWrap: "wrap" },
   tab: { flex: 1, background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(255,180,210,0.3)", borderRadius: 14, color: "#c77dab", fontSize: 13, fontWeight: 600, padding: "11px 8px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", transition: "all 0.2s" },
   tabActive: { background: "linear-gradient(135deg, rgba(255,110,180,0.15), rgba(233,30,99,0.1))", border: "1.5px solid rgba(233,30,99,0.35)", color: "#e91e63" },
-
   main: { padding: "20px 16px 60px", maxWidth: 700, margin: "0 auto" },
-
+  filterRow: { display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" },
+  filterBtn: { background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(255,180,210,0.3)", borderRadius: 30, padding: "8px 20px", fontSize: 13, fontWeight: 600, color: "#c77dab", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
+  filterActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", color: "#fff" },
   weekScroll: { display: "flex", gap: 8, overflowX: "auto", paddingBottom: 12, marginBottom: 20 },
   weekDay: { minWidth: 56, height: 82, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,180,210,0.3)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, cursor: "pointer", flexShrink: 0, position: "relative", transition: "all 0.2s", boxShadow: "0 2px 10px rgba(233,30,99,0.05)" },
   weekDayActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", boxShadow: "0 6px 20px rgba(233,30,99,0.3)" },
@@ -424,13 +600,10 @@ const s: Record<string, React.CSSProperties> = {
   wdName: { fontSize: 10, color: "#c77dab", fontWeight: 600, textTransform: "uppercase" },
   wdNum: { fontSize: 21, fontWeight: 800, color: "#2d1b2e", lineHeight: 1 },
   wdBadge: { position: "absolute", top: 6, right: 6, minWidth: 18, height: 18, borderRadius: 9, background: "#e91e63", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" },
-
   secTitle: { fontSize: 17, fontWeight: 700, color: "#2d1b2e", marginBottom: 14 },
   secSub: { fontSize: 13, color: "#a0738c", marginBottom: 18 },
-
   emptyCard: { textAlign: "center", padding: "36px 20px", background: "rgba(255,255,255,0.7)", borderRadius: 20, border: "1.5px dashed rgba(255,180,210,0.4)" },
   emptyTxt: { marginTop: 8, color: "#c77dab", fontSize: 14, fontWeight: 500 },
-
   aptList: { display: "flex", flexDirection: "column", gap: 12 },
   aptCard: { background: "rgba(255,255,255,0.92)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1.5px solid rgba(255,180,210,0.25)", borderRadius: 20, padding: "16px", display: "flex", gap: 12, alignItems: "flex-start", boxShadow: "0 4px 16px rgba(233,30,99,0.06)", transition: "all 0.2s" },
   aptConfirmed: { borderColor: "rgba(16,185,129,0.3)", background: "rgba(240,255,250,0.9)" },
@@ -448,8 +621,8 @@ const s: Record<string, React.CSSProperties> = {
   aptPrice: { fontSize: 15, fontWeight: 800, color: "#e91e63" },
   aptBtns: { display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 },
   btnConfirm: { background: "linear-gradient(135deg, #10b981, #059669)", border: "none", borderRadius: 12, color: "#fff", fontSize: 12, fontWeight: 700, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" },
+  btnComplete: { background: "linear-gradient(135deg, #6b7280, #4b5563)", border: "none", borderRadius: 12, color: "#fff", fontSize: 12, fontWeight: 700, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" },
   btnMove: { background: "rgba(255,240,247,0.9)", border: "1px solid rgba(255,110,180,0.35)", borderRadius: 12, color: "#e91e63", fontSize: 12, fontWeight: 600, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" },
-
   topList: { display: "flex", flexDirection: "column", gap: 10 },
   topItem: { display: "flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,0.85)", borderRadius: 16, padding: "14px", border: "1.5px solid rgba(255,180,210,0.2)", boxShadow: "0 2px 10px rgba(233,30,99,0.05)" },
   topRank: { fontSize: 17, fontWeight: 800, color: "#ffb3d1", minWidth: 28 },
@@ -460,7 +633,6 @@ const s: Record<string, React.CSSProperties> = {
   topMeta: { display: "flex", justifyContent: "space-between" },
   topCount: { fontSize: 12, color: "#c77dab" },
   topRev: { fontSize: 14, fontWeight: 800, color: "#e91e63" },
-
   svcList: { display: "flex", flexDirection: "column", gap: 10 },
   svcCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,180,210,0.25)", borderRadius: 18, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, boxShadow: "0 2px 10px rgba(233,30,99,0.05)", transition: "opacity 0.2s" },
   svcOff: { opacity: 0.45 },
@@ -471,19 +643,17 @@ const s: Record<string, React.CSSProperties> = {
   toggleOff: { background: "rgba(200,170,185,0.15)", color: "#a0738c" },
   addForm: { display: "flex", flexDirection: "column", gap: 10 },
   btnAdd: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 16, color: "#fff", fontSize: 15, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "14px", cursor: "pointer", boxShadow: "0 6px 20px rgba(233,30,99,0.3)" },
-
   slotsGrid: { display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 },
-  slotCard: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, borderRadius: 14, padding: "10px 14px", border: "1.5px solid rgba(255,180,210,0.3)", minWidth: 120, flex: "1 0 120px", transition: "all 0.2s" },
+  slotCard: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, borderRadius: 14, padding: "10px 14px", border: "1.5px solid rgba(255,180,210,0.3)", minWidth: 120, flex: "1 0 120px", transition: "all 0.2s", cursor: "pointer" },
   slotOn: { background: "rgba(255,240,247,0.9)", borderColor: "rgba(255,110,180,0.4)" },
   slotOffCard: { background: "rgba(245,235,240,0.5)", opacity: 0.6 },
+  slotBlockedCard: { background: "rgba(255,220,220,0.8)", borderColor: "rgba(220,50,80,0.4)", opacity: 0.8 },
   slotTime: { fontSize: 15, fontWeight: 700, color: "#2d1b2e" },
   slotFooter: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0" },
   slotCount: { fontSize: 13, color: "#a0738c", fontWeight: 500 },
   resetBtn: { background: "rgba(255,240,247,0.9)", border: "1px solid rgba(255,110,180,0.35)", borderRadius: 12, color: "#e91e63", fontSize: 13, fontWeight: 600, padding: "8px 16px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
-
   input: { width: "100%", background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,180,210,0.45)", borderRadius: 16, color: "#2d1b2e", fontSize: 15, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "13px 16px", transition: "all 0.2s", fontWeight: 500 },
   label: { display: "block", fontSize: 13, fontWeight: 600, color: "#a0738c", marginBottom: 8 },
-
   overlay: { position: "fixed", inset: 0, background: "rgba(45,27,46,0.4)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200, padding: 16 },
   modal: { background: "rgba(255,252,254,0.98)", border: "1.5px solid rgba(255,180,210,0.4)", borderRadius: "24px 24px 16px 16px", padding: "26px 22px 32px", width: "100%", maxWidth: 500, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 -8px 40px rgba(233,30,99,0.12)" },
   modalTitle: { fontSize: 20, fontWeight: 800, color: "#2d1b2e", marginBottom: 4 },
@@ -493,4 +663,16 @@ const s: Record<string, React.CSSProperties> = {
   modalSlotActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", color: "#fff", boxShadow: "0 4px 14px rgba(233,30,99,0.3)" },
   modalActions: { display: "flex", gap: 10 },
   btnCancel: { flex: 1, background: "rgba(245,235,240,0.9)", border: "1.5px solid rgba(200,170,185,0.4)", borderRadius: 14, color: "#a0738c", fontSize: 14, fontWeight: 600, padding: "13px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
+  btnConfirm: { flex: 1, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 14, color: "#fff", fontSize: 14, fontWeight: 800, padding: "13px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
+  billingPeriodRow: { display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" },
+  billingPeriodBtn: { background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(255,180,210,0.3)", borderRadius: 30, padding: "8px 20px", fontSize: 13, fontWeight: 600, color: "#c77dab", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
+  billingPeriodActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", color: "#fff" },
+  billingCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,180,210,0.25)", borderRadius: 20, padding: "16px", marginBottom: 12, boxShadow: "0 2px 10px rgba(233,30,99,0.05)" },
+  billingHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  billingDate: { fontSize: 16, fontWeight: 700, color: "#2d1b2e" },
+  billingTotal: { fontSize: 18, fontWeight: 800, color: "#e91e63" },
+  billingDetails: { borderTop: "1px solid rgba(255,180,210,0.3)", paddingTop: 12 },
+  billingItem: { display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13 },
+  billingItemName: { color: "#a0738c" },
+  billingItemPrice: { fontWeight: 600, color: "#2d1b2e" },
 };
