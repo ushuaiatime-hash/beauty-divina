@@ -18,29 +18,16 @@ const DAY_NAMES_FULL = ["Domingo","Lunes","Martes","Miércoles","Jueves","Vierne
 const DAY_NAMES_SHORT = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
 const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-// Función para obtener fecha en zona horaria Argentina (UTC-3)
-function getArgentinaDate(): Date {
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  return new Date(utc + (3 * 3600000));
-}
-
-function formatDate(d: Date): string {
+function formatDate(d: Date) { 
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
-function formatDisplayDate(dateStr: string): string {
-  if (!dateStr) return "";
-  const [year, month, day] = dateStr.split("-");
-  return `${day}/${month}/${year}`;
-}
-
 function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 function getWeekDates() {
-  const today = getArgentinaDate();
+  const today = new Date();
   const day = today.getDay();
   const monday = addDays(today, day === 0 ? -6 : 1 - day);
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
@@ -62,7 +49,7 @@ export default function PanelPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [completedAppointments, setCompletedAppointments] = useState<Appointment[]>([]);
   const [filter, setFilter] = useState<"all"|"pending"|"today">("all");
-  const [selectedDate, setSelectedDate] = useState(formatDate(getArgentinaDate()));
+  const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [weekDates] = useState(getWeekDates());
   const [services, setServices] = useState<Service[]>([
     { name: "Manicuria Semipermanente", price: 8000, active: true },
@@ -92,10 +79,10 @@ export default function PanelPage() {
       const all = data as Appointment[];
       setAppointments(all.filter(a => a.status !== "completed" && a.status !== "cancelled"));
       setCompletedAppointments(all.filter(a => a.status === "completed" || a.status === "cancelled"));
-      const today = formatDate(getArgentinaDate());
+      const today = formatDate(new Date());
       setStatsToday(all.filter(a => a.date === today && a.status !== "cancelled").length);
-      setStatsPending(all.filter(a => a.status === "pending").length);
-      const thisMonth = formatDate(getArgentinaDate()).slice(0, 7);
+      setStatsPending(all.filter(a => a.status === "pending" || a.status === "pending_seña").length);
+      const thisMonth = formatDate(new Date()).slice(0, 7);
       setStatsRevenue(all.filter(a => a.date.startsWith(thisMonth) && a.status === "confirmed").reduce((sum: number, a: Appointment) => sum + (a.price || 0), 0));
       const svcMap: Record<string, { count: number; revenue: number }> = {};
       all.forEach((a: Appointment) => {
@@ -116,7 +103,7 @@ export default function PanelPage() {
     const generateBillingData = () => {
       const allCompleted = [...appointments, ...completedAppointments].filter(a => a.status === "completed");
       if (billingPeriod === "day") {
-        const today = formatDate(getArgentinaDate());
+        const today = formatDate(new Date());
         const dayData = allCompleted.filter(a => a.date === today);
         setBillingData([{ date: "Hoy", total: dayData.reduce((s, a) => s + (a.price || 0), 0), appointments: dayData }]);
       } else if (billingPeriod === "week") {
@@ -126,7 +113,7 @@ export default function PanelPage() {
           const dayApps = allCompleted.filter(a => a.date === ds);
           weekData[ds] = { total: dayApps.reduce((s, a) => s + (a.price || 0), 0), appointments: dayApps };
         });
-        setBillingData(Object.entries(weekData).map(([date, data]) => ({ date: formatDisplayDate(date), ...data })));
+        setBillingData(Object.entries(weekData).map(([date, data]) => ({ date, ...data })));
       } else {
         const monthData: Record<string, { total: number; appointments: Appointment[] }> = {};
         allCompleted.forEach(a => {
@@ -147,8 +134,8 @@ export default function PanelPage() {
   }
 
   const getFilteredAppointments = () => {
-    const dayAppointments = appointments.filter(a => a.date === selectedDate);
-    if (filter === "pending") return dayAppointments.filter(a => a.status === "pending");
+    let dayAppointments = appointments.filter(a => a.date === selectedDate);
+    if (filter === "pending") return dayAppointments.filter(a => a.status === "pending" || a.status === "pending_seña");
     if (filter === "today") return dayAppointments.filter(a => a.status === "confirmed");
     return dayAppointments;
   };
@@ -159,11 +146,23 @@ export default function PanelPage() {
     await supabase.from("appointments").update({ status: "confirmed" }).eq("id", apt.id);
     loadAppointments();
     const [y, m, d] = apt.date.split("-");
-    const msg = encodeURIComponent(
-      `✅ ¡Turno Confirmado! - Beauty Divina\n\nHola ${apt.client_name} 👋\nTu turno ha sido *confirmado*:\n\n` +
-      `💅 ${apt.service_name}\n👩‍💼 ${apt.professional_name}\n📆 ${d}/${m}/${y} a las ${apt.time}\n📍 Cairo 83, Monte Grande\n\n¡Te esperamos! ✨💕`
+    const mensaje = encodeURIComponent(
+      `🌸 TURNO CONFIRMADO - Beauty Divina 🌸\n\n` +
+      `Hola ${apt.client_name} 👋\n\n` +
+      `✅ Tu turno ha sido CONFIRMADO luego de recibir tu comprobante de seña.\n\n` +
+      `📅 Fecha: ${d}/${m}/${y}\n` +
+      `⏰ Hora: ${apt.time}hs\n` +
+      `💅 Servicio: ${apt.service_name}\n` +
+      `👩‍💼 Profesional: ${apt.professional_name}\n` +
+      `📍 Dirección: Cap Cairo 601, Monte Grande\n\n` +
+      `📋 Recordá:\n` +
+      `• Tolerancia de 5 minutos (pasado ese tiempo se cobra adicional)\n` +
+      `• No se permiten acompañantes\n` +
+      `• La seña NO es reembolsable\n` +
+      `• Cancelá con 24hs de anticipación para reprogramar\n\n` +
+      `✨ ¡Te esperamos! ✨`
     );
-    window.open(`https://wa.me/${apt.client_phone}?text=${msg}`, "_blank");
+    window.open(`https://wa.me/${apt.client_phone}?text=${mensaje}`, "_blank");
   }
 
   async function completeAppointment(apt: Appointment) {
@@ -178,8 +177,8 @@ export default function PanelPage() {
     const apt = moveModal.apt;
     const [y, m, d] = moveDate.split("-");
     const msg = encodeURIComponent(
-      `📅 Turno Reprogramado - Beauty Divina\n\nHola ${apt.client_name} 👋\nTu turno fue *reprogramado*:\n\n` +
-      `💅 ${apt.service_name}\n👩‍💼 ${apt.professional_name}\n📆 Nueva fecha: ${d}/${m}/${y} a las ${moveTime}\n📍 Cairo 83, Monte Grande\n\nSi tenés dudas, escribinos 💕`
+      `📅 Turno Reprogramado - Beauty Divina\n\nHola ${apt.client_name} 👋\nTu turno fue reprogramado:\n\n` +
+      `💅 ${apt.service_name}\n👩‍💼 ${apt.professional_name}\n📆 Nueva fecha: ${d}/${m}/${y} a las ${moveTime}\n📍 Cap Cairo 601, Monte Grande\n\nSi tenés dudas, escribinos 💕`
     );
     window.open(`https://wa.me/${apt.client_phone}?text=${msg}`, "_blank");
     setMoveModal({ open: false, apt: null });
@@ -233,7 +232,7 @@ export default function PanelPage() {
           />
           {pinError && <p style={pinStyles.pinErrTxt}>PIN incorrecto. Intentá de nuevo.</p>}
           <button style={pinStyles.btn} onClick={handlePinSubmit}>Ingresar →</button>
-          <p style={pinStyles.footer}>Beauty Divina · Cairo 83, Monte Grande</p>
+          <p style={pinStyles.footer}>Beauty Divina · Cap Cairo 601, Monte Grande</p>
         </div>
       </div>
     );
@@ -251,7 +250,7 @@ export default function PanelPage() {
           </div>
           <button style={dashboardStyles.logoutBtn} onClick={() => setAuthenticated(false)}>Salir</button>
         </div>
-        <p style={dashboardStyles.headerSub}>Panel de gestión · Cairo 83, Monte Grande</p>
+        <p style={dashboardStyles.headerSub}>Panel de gestión · Cap Cairo 601, Monte Grande</p>
       </header>
 
       <div style={dashboardStyles.statsRow}>
@@ -291,7 +290,7 @@ export default function PanelPage() {
                 const ds = formatDate(d);
                 const count = appointments.filter((a) => a.date === ds).length;
                 const isSel = selectedDate === ds;
-                const isToday = formatDate(getArgentinaDate()) === ds;
+                const isToday = formatDate(new Date()) === ds;
                 return (
                   <div
                     key={ds}
@@ -323,7 +322,7 @@ export default function PanelPage() {
                     <div style={dashboardStyles.aptTimeCol}>
                       <span style={dashboardStyles.aptTime}>{apt.time}</span>
                       <span style={{ ...dashboardStyles.aptStatus, ...(apt.status === "confirmed" ? dashboardStyles.statusOk : apt.status === "cancelled" ? dashboardStyles.statusNo : dashboardStyles.statusWait) }}>
-                        {apt.status === "confirmed" ? "✓" : apt.status === "cancelled" ? "✗" : "⏳"}
+                        {apt.status === "confirmed" ? "✓" : apt.status === "cancelled" ? "✗" : apt.status === "pending_seña" ? "💰" : "⏳"}
                       </span>
                     </div>
                     <div style={dashboardStyles.aptInfo}>
@@ -331,17 +330,25 @@ export default function PanelPage() {
                       <p style={dashboardStyles.aptSvc}>{apt.service_name}</p>
                       <p style={dashboardStyles.aptProf}>👩‍💼 {apt.professional_name}</p>
                       <p style={dashboardStyles.aptPrice}>${apt.price?.toLocaleString("es-AR")}</p>
-                      <p style={{ fontSize: 11, color: "#a0738c", marginTop: 4 }}>📅 {formatDisplayDate(apt.date)}</p>
+                      {apt.status === "pending_seña" && (
+                        <p style={{ fontSize: 11, color: "#f59e0b", marginTop: 4 }}>💰 Esperando confirmación de pago</p>
+                      )}
                     </div>
                     {apt.status !== "cancelled" && (
                       <div style={dashboardStyles.aptBtns}>
-                        {apt.status === "pending" && (
-                          <button style={dashboardStyles.btnConfirmApt} onClick={() => confirmAppointment(apt)}>✓ Confirmar</button>
+                        {(apt.status === "pending_seña" || apt.status === "pending") && (
+                          <button style={dashboardStyles.btnConfirmApt} onClick={() => confirmAppointment(apt)}>
+                            ✅ Confirmar
+                          </button>
                         )}
                         {apt.status === "confirmed" && (
-                          <button style={dashboardStyles.btnComplete} onClick={() => completeAppointment(apt)}>✓ Completar</button>
+                          <button style={dashboardStyles.btnComplete} onClick={() => completeAppointment(apt)}>
+                            ✓ Completar
+                          </button>
                         )}
-                        <button style={dashboardStyles.btnMove} onClick={() => { setMoveModal({ open: true, apt }); setMoveDate(apt.date); setMoveTime(apt.time); }}>📅 Mover</button>
+                        <button style={dashboardStyles.btnMove} onClick={() => { setMoveModal({ open: true, apt }); setMoveDate(apt.date); setMoveTime(apt.time); }}>
+                          📅 Mover
+                        </button>
                       </div>
                     )}
                   </div>
@@ -364,7 +371,6 @@ export default function PanelPage() {
                         <p style={dashboardStyles.aptSvc}>{apt.service_name}</p>
                         <p style={dashboardStyles.aptProf}>👩‍💼 {apt.professional_name}</p>
                         <p style={dashboardStyles.aptPrice}>${apt.price?.toLocaleString("es-AR")}</p>
-                        <p style={{ fontSize: 11, color: "#a0738c", marginTop: 4 }}>📅 {formatDisplayDate(apt.date)}</p>
                       </div>
                     </div>
                   ))}
@@ -529,7 +535,7 @@ export default function PanelPage() {
             <h3 style={dashboardStyles.modalTitle}>📅 Reprogramar turno</h3>
             <p style={dashboardStyles.modalSub}>{moveModal.apt.client_name} · {moveModal.apt.service_name}</p>
             <label style={dashboardStyles.label}>Nueva fecha</label>
-            <input type="date" style={dashboardStyles.input} value={moveDate} onChange={(e) => setMoveDate(e.target.value)} min={formatDate(getArgentinaDate())} />
+            <input type="date" style={dashboardStyles.input} value={moveDate} onChange={(e) => setMoveDate(e.target.value)} min={formatDate(new Date())} />
             <label style={{ ...dashboardStyles.label, marginTop: 14 }}>Nuevo horario</label>
             <div style={dashboardStyles.modalSlots}>
               {ALL_TIME_SLOTS.map((t) => (
