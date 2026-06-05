@@ -18,10 +18,29 @@ const DAY_NAMES_FULL = ["Domingo","Lunes","Martes","Miércoles","Jueves","Vierne
 const DAY_NAMES_SHORT = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
 const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-function formatDate(d: Date) { return d.toISOString().split("T")[0]; }
+// Función para obtener fecha en zona horaria Argentina (UTC-3)
+function getArgentinaDate(): Date {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + (3 * 3600000));
+}
+
+function formatDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatDisplayDate(dateStr: string): string {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 function getWeekDates() {
-  const today = new Date();
+  const today = getArgentinaDate();
   const day = today.getDay();
   const monday = addDays(today, day === 0 ? -6 : 1 - day);
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
@@ -43,7 +62,7 @@ export default function PanelPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [completedAppointments, setCompletedAppointments] = useState<Appointment[]>([]);
   const [filter, setFilter] = useState<"all"|"pending"|"today">("all");
-  const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
+  const [selectedDate, setSelectedDate] = useState(formatDate(getArgentinaDate()));
   const [weekDates] = useState(getWeekDates());
   const [services, setServices] = useState<Service[]>([
     { name: "Manicuria Semipermanente", price: 8000, active: true },
@@ -73,10 +92,10 @@ export default function PanelPage() {
       const all = data as Appointment[];
       setAppointments(all.filter(a => a.status !== "completed" && a.status !== "cancelled"));
       setCompletedAppointments(all.filter(a => a.status === "completed" || a.status === "cancelled"));
-      const today = formatDate(new Date());
+      const today = formatDate(getArgentinaDate());
       setStatsToday(all.filter(a => a.date === today && a.status !== "cancelled").length);
       setStatsPending(all.filter(a => a.status === "pending").length);
-      const thisMonth = new Date().toISOString().slice(0, 7);
+      const thisMonth = formatDate(getArgentinaDate()).slice(0, 7);
       setStatsRevenue(all.filter(a => a.date.startsWith(thisMonth) && a.status === "confirmed").reduce((sum: number, a: Appointment) => sum + (a.price || 0), 0));
       const svcMap: Record<string, { count: number; revenue: number }> = {};
       all.forEach((a: Appointment) => {
@@ -97,7 +116,7 @@ export default function PanelPage() {
     const generateBillingData = () => {
       const allCompleted = [...appointments, ...completedAppointments].filter(a => a.status === "completed");
       if (billingPeriod === "day") {
-        const today = formatDate(new Date());
+        const today = formatDate(getArgentinaDate());
         const dayData = allCompleted.filter(a => a.date === today);
         setBillingData([{ date: "Hoy", total: dayData.reduce((s, a) => s + (a.price || 0), 0), appointments: dayData }]);
       } else if (billingPeriod === "week") {
@@ -107,7 +126,7 @@ export default function PanelPage() {
           const dayApps = allCompleted.filter(a => a.date === ds);
           weekData[ds] = { total: dayApps.reduce((s, a) => s + (a.price || 0), 0), appointments: dayApps };
         });
-        setBillingData(Object.entries(weekData).map(([date, data]) => ({ date, ...data })));
+        setBillingData(Object.entries(weekData).map(([date, data]) => ({ date: formatDisplayDate(date), ...data })));
       } else {
         const monthData: Record<string, { total: number; appointments: Appointment[] }> = {};
         allCompleted.forEach(a => {
@@ -272,7 +291,7 @@ export default function PanelPage() {
                 const ds = formatDate(d);
                 const count = appointments.filter((a) => a.date === ds).length;
                 const isSel = selectedDate === ds;
-                const isToday = formatDate(new Date()) === ds;
+                const isToday = formatDate(getArgentinaDate()) === ds;
                 return (
                   <div
                     key={ds}
@@ -312,6 +331,7 @@ export default function PanelPage() {
                       <p style={dashboardStyles.aptSvc}>{apt.service_name}</p>
                       <p style={dashboardStyles.aptProf}>👩‍💼 {apt.professional_name}</p>
                       <p style={dashboardStyles.aptPrice}>${apt.price?.toLocaleString("es-AR")}</p>
+                      <p style={{ fontSize: 11, color: "#a0738c", marginTop: 4 }}>📅 {formatDisplayDate(apt.date)}</p>
                     </div>
                     {apt.status !== "cancelled" && (
                       <div style={dashboardStyles.aptBtns}>
@@ -344,6 +364,7 @@ export default function PanelPage() {
                         <p style={dashboardStyles.aptSvc}>{apt.service_name}</p>
                         <p style={dashboardStyles.aptProf}>👩‍💼 {apt.professional_name}</p>
                         <p style={dashboardStyles.aptPrice}>${apt.price?.toLocaleString("es-AR")}</p>
+                        <p style={{ fontSize: 11, color: "#a0738c", marginTop: 4 }}>📅 {formatDisplayDate(apt.date)}</p>
                       </div>
                     </div>
                   ))}
@@ -508,7 +529,7 @@ export default function PanelPage() {
             <h3 style={dashboardStyles.modalTitle}>📅 Reprogramar turno</h3>
             <p style={dashboardStyles.modalSub}>{moveModal.apt.client_name} · {moveModal.apt.service_name}</p>
             <label style={dashboardStyles.label}>Nueva fecha</label>
-            <input type="date" style={dashboardStyles.input} value={moveDate} onChange={(e) => setMoveDate(e.target.value)} min={formatDate(new Date())} />
+            <input type="date" style={dashboardStyles.input} value={moveDate} onChange={(e) => setMoveDate(e.target.value)} min={formatDate(getArgentinaDate())} />
             <label style={{ ...dashboardStyles.label, marginTop: 14 }}>Nuevo horario</label>
             <div style={dashboardStyles.modalSlots}>
               {ALL_TIME_SLOTS.map((t) => (
