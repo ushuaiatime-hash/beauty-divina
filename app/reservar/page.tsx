@@ -26,11 +26,19 @@ const TIME_SLOTS = [
   "16:00","16:30","17:00","17:30","18:00",
 ];
 
+// Datos de la dueña
+const OWNER = {
+  whatsapp: "541155916379",
+  alias: "Milagrosdominguez150",
+  titular: "Milagros Celeste Dominguez",
+  direccion: "Cap Cairo 601, Monte Grande",
+};
+
 // Función para obtener fecha en zona horaria Argentina (UTC-3)
 function getArgentinaDate(): Date {
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  return new Date(utc + (3 * 3600000)); // UTC-3 para Argentina
+  return new Date(utc + (3 * 3600000));
 }
 
 function formatDate(date: Date): string {
@@ -41,6 +49,7 @@ function formatDate(date: Date): string {
 }
 
 function formatDisplayDate(dateStr: string): string {
+  if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-");
   return `${day}/${month}/${year}`;
 }
@@ -51,8 +60,31 @@ function addDays(date: Date, days: number) {
   return d;
 }
 
-const DAY_NAMES = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DAY_NAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+// Políticas de trabajo (ventana emergente)
+function PoliticasModal({ onClose, onAccept }: { onClose: () => void; onAccept: () => void }) {
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
+        <h3 style={modalStyles.title}>🌸 POLÍTICAS DE TRABAJO</h3>
+        <div style={modalStyles.content}>
+          <p><strong>1.</strong> Las sesiones son con turno previo, reservando con una SEÑA de <strong>$5.000</strong>. La seña NO ES REEMBOLSABLE. Sirve para reprogramar avisando mínimo 24hs antes.</p>
+          <p><strong>2.</strong> Una vez que elijas el servicio, completás tus datos y TRANSFERÍS la seña al alias indicado. Luego envías el comprobante por WhatsApp.</p>
+          <p><strong>3.</strong> Se enviarán recordatorios antes del turno. Si no confirmás asistencia, se puede perder la seña.</p>
+          <p><strong>4.</strong> Tiempo de tolerancia: <strong>5 minutos</strong>. Pasado ese tiempo se cobrará un adicional de $5.000.</p>
+          <p><strong>5.</strong> No se permiten acompañantes.</p>
+          <p><strong>6.</strong> El lavado pre técnico está incluido. Corte de puntas incluido (flequillo no, extra $10.000).</p>
+        </div>
+        <div style={modalStyles.buttons}>
+          <button style={modalStyles.cancelBtn} onClick={onClose}>Leer más tarde</button>
+          <button style={modalStyles.acceptBtn} onClick={onAccept}>✅ Acepto las políticas</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ReservarPage() {
   const [step, setStep] = useState(1);
@@ -67,6 +99,8 @@ export default function ReservarPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [calendarDates, setCalendarDates] = useState<Date[]>([]);
+  const [showPoliticas, setShowPoliticas] = useState(false);
+  const [politicasAceptadas, setPoliticasAceptadas] = useState(false);
 
   useEffect(() => {
     const today = getArgentinaDate();
@@ -76,7 +110,6 @@ export default function ReservarPage() {
       if (d.getDay() !== 0) dates.push(d);
     }
     setCalendarDates(dates);
-    // Si hoy es domingo, empezar desde lunes
     const startDate = today.getDay() === 0 ? addDays(today, 1) : today;
     setSelectedDate(formatDate(startDate));
   }, []);
@@ -104,9 +137,15 @@ export default function ReservarPage() {
       setError("Por favor completá todos los campos.");
       return;
     }
+    if (!politicasAceptadas) {
+      setShowPoliticas(true);
+      return;
+    }
     setLoading(true);
     setError("");
     const fullPhone = "54" + clientPhone.replace(/\D/g, "");
+    
+    // Guardar turno como "pending_seña" (esperando comprobante)
     const { error: dbError } = await supabase.from("appointments").insert([{
       client_name: clientName,
       client_phone: fullPhone,
@@ -116,22 +155,34 @@ export default function ReservarPage() {
       time: selectedTime,
       duration_minutes: selectedService.duration,
       price: selectedService.price,
-      status: "pending",
+      status: "pending_seña",
     }]);
-    if (dbError) { setError("Hubo un error al guardar. Intentá de nuevo."); setLoading(false); return; }
+    
+    if (dbError) { 
+      setError("Hubo un error al guardar. Intentá de nuevo."); 
+      setLoading(false); 
+      return; 
+    }
+    
+    // Mensaje para la dueña
     const [year, month, day] = selectedDate.split("-");
     const msg = encodeURIComponent(
-      `📅 NUEVA RESERVA - Beauty Divina\n\n` +
+      `🌸 NUEVA RESERVA CON SEÑA PENDIENTE - Beauty Divina\n\n` +
       `👤 Cliente: ${clientName}\n` +
       `📱 WhatsApp: +${fullPhone}\n` +
       `💅 Servicio: ${selectedService.name}\n` +
       `👩‍💼 Profesional: ${selectedProfessional.name}\n` +
       `📆 Fecha: ${day}/${month}/${year}\n` +
       `⏰ Hora: ${selectedTime}\n` +
-      `💰 Precio: $${selectedService.price.toLocaleString("es-AR")}\n\n` +
-      `✨ Reserva realizada desde Beauty Divina Turnos`
+      `💰 Precio total: $${selectedService.price.toLocaleString("es-AR")}\n` +
+      `💸 Seña: $5.000\n\n` +
+      `📲 Alias para transferir: ${OWNER.alias}\n` +
+      `👤 Titular: ${OWNER.titular}\n\n` +
+      `🔔 La clienta debe enviar el comprobante de pago para confirmar el turno.\n` +
+      `📍 Dirección: ${OWNER.direccion}`
     );
-    window.open(`https://wa.me/541124055260?text=${msg}`, "_blank");
+    window.open(`https://wa.me/${OWNER.whatsapp}?text=${msg}`, "_blank");
+    
     setSuccess(true);
     setLoading(false);
   }
@@ -142,10 +193,18 @@ export default function ReservarPage() {
         <style>{globalCSS}</style>
         <div style={styles.successCard}>
           <div style={styles.successIcon}>🎉</div>
-          <h2 style={styles.successTitle}>¡Turno Reservado!</h2>
-          <p style={styles.successText}>Tu turno fue confirmado para el <strong>{formatDisplayDate(selectedDate)}</strong> a las <strong>{selectedTime}</strong> con <strong>{selectedProfessional?.name}</strong>.</p>
-          <p style={{ ...styles.successText, fontSize: 14, opacity: 0.7 }}>Se envió notificación por WhatsApp. ¡Te esperamos! 💅</p>
-          <button style={styles.primaryBtn} onClick={() => { setStep(1); setSuccess(false); setSelectedService(null); setSelectedProfessional(null); setSelectedTime(""); setClientName(""); setClientPhone(""); }}>
+          <h2 style={styles.successTitle}>¡Reserva pendiente!</h2>
+          <p style={styles.successText}>Tu turno está <strong>pendiente de confirmación</strong>.</p>
+          <p style={styles.successText}>Por favor, transferí la seña de <strong>$5.000</strong> a:</p>
+          <div style={styles.aliasCard}>
+            <p><strong>Alias:</strong> {OWNER.alias}</p>
+            <p><strong>Titular:</strong> {OWNER.titular}</p>
+          </div>
+          <p style={styles.successText}>Luego enviá el comprobante por WhatsApp para confirmar tu turno.</p>
+          <a href={`https://wa.me/${OWNER.whatsapp}?text=Hola! Ya realicé la transferencia de la seña para mi turno de ${selectedService?.name} el ${formatDisplayDate(selectedDate)} a las ${selectedTime}. Mi nombre es ${clientName}.`} target="_blank" style={styles.whatsappBtn}>
+            💬 Enviar comprobante por WhatsApp
+          </a>
+          <button style={styles.primaryBtn} onClick={() => { setStep(1); setSuccess(false); setSelectedService(null); setSelectedProfessional(null); setSelectedTime(""); setClientName(""); setClientPhone(""); setPoliticasAceptadas(false); }}>
             Hacer otra reserva
           </button>
         </div>
@@ -156,6 +215,14 @@ export default function ReservarPage() {
   return (
     <div style={styles.page}>
       <style>{globalCSS}</style>
+      
+      {showPoliticas && (
+        <PoliticasModal 
+          onClose={() => setShowPoliticas(false)} 
+          onAccept={() => { setPoliticasAceptadas(true); setShowPoliticas(false); }} 
+        />
+      )}
+      
       <header style={styles.header}>
         <div style={styles.logoWrap}>
           <div style={styles.logoDot} />
@@ -250,7 +317,6 @@ export default function ReservarPage() {
                 );
               })}
             </div>
-            {selectedTime && <div style={{ marginTop: 20 }} />}
             {selectedTime && (
               <button style={{ ...styles.primaryBtn }} onClick={() => setStep(4)}>
                 Continuar →
@@ -262,31 +328,38 @@ export default function ReservarPage() {
         {step === 4 && (
           <div style={styles.stepWrap} className="fadeIn">
             <h2 style={styles.stepTitle}>Tus datos</h2>
-            <p style={styles.stepSub}>Último paso para confirmar tu turno</p>
+            <p style={styles.stepSub}>Último paso para reservar tu turno</p>
             <div style={styles.summaryCard}>
               <h4 style={styles.summaryTitle}>📋 Resumen de tu turno</h4>
               <div style={styles.summaryRow}><span>💅 Servicio</span><strong>{selectedService?.name}</strong></div>
               <div style={styles.summaryRow}><span>👩‍💼 Profesional</span><strong>{selectedProfessional?.name}</strong></div>
               <div style={styles.summaryRow}><span>📆 Fecha</span><strong>{formatDisplayDate(selectedDate)}</strong></div>
               <div style={styles.summaryRow}><span>⏰ Hora</span><strong>{selectedTime}</strong></div>
-              <div style={styles.summaryRow}><span>💰 Precio</span><strong style={{ color: "#ff6eb4" }}>${selectedService?.price.toLocaleString("es-AR")}</strong></div>
+              <div style={styles.summaryRow}><span>💰 Precio total</span><strong style={{ color: "#e91e63" }}>${selectedService?.price.toLocaleString("es-AR")}</strong></div>
+              <div style={styles.summaryRow}><span>💸 Seña requerida</span><strong style={{ color: "#e91e63" }}>$5.000</strong></div>
             </div>
             <div style={styles.formGroup}>
-              <label style={styles.label}>Tu nombre completo</label>
+              <label style={styles.label}>Tu nombre completo *</label>
               <input style={styles.input} placeholder="Ej: María García" value={clientName} onChange={(e) => setClientName(e.target.value)} />
             </div>
             <div style={styles.formGroup}>
-              <label style={styles.label}>Tu WhatsApp <span style={{ opacity: 0.6, fontSize: 12 }}>(sin código de país)</span></label>
+              <label style={styles.label}>Tu WhatsApp <span style={{ opacity: 0.6, fontSize: 12 }}>(sin código de país)</span> *</label>
               <div style={styles.phoneWrap}>
                 <span style={styles.phonePrefix}>+54</span>
                 <input style={{ ...styles.input, borderRadius: "0 12px 12px 0", borderLeft: "none" }} placeholder="Ej: 1134567890" value={clientPhone} onChange={(e) => setClientPhone(e.target.value.replace(/\D/g, ""))} maxLength={12} inputMode="tel" />
               </div>
             </div>
+            <div style={styles.politicasNotice}>
+              <input type="checkbox" checked={politicasAceptadas} onChange={(e) => setPoliticasAceptadas(e.target.checked)} />
+              <label style={{ marginLeft: 8, fontSize: 13, color: "#a0738c" }}>
+                Acepto las <button type="button" style={styles.politicasLink} onClick={() => setShowPoliticas(true)}>políticas de trabajo</button>
+              </label>
+            </div>
             {error && <div style={styles.errorMsg}>{error}</div>}
             <button style={{ ...styles.primaryBtn, ...(loading ? styles.btnDisabled : {}) }} disabled={loading} onClick={handleReservar}>
-              {loading ? "Reservando..." : "✨ Confirmar Turno"}
+              {loading ? "Reservando..." : "✨ Reservar turno"}
             </button>
-            <p style={styles.disclaimer}>Al confirmar, se enviará una notificación a la estética. 🌸</p>
+            <p style={styles.disclaimer}>Al reservar, se te pedirá una seña de $5.000 para confirmar el turno. 🌸</p>
           </div>
         )}
       </main>
@@ -310,6 +383,16 @@ const globalCSS = `
   ::-webkit-scrollbar-track { background: #ffe4ec; }
   ::-webkit-scrollbar-thumb { background: #ff6eb4; border-radius: 4px; }
 `;
+
+const modalStyles: Record<string, React.CSSProperties> = {
+  overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 },
+  modal: { background: "#fff", borderRadius: 28, maxWidth: 500, width: "100%", maxHeight: "80vh", overflowY: "auto", padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" },
+  title: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 22, fontWeight: 800, color: "#e91e63", marginBottom: 16, textAlign: "center" },
+  content: { fontSize: 14, color: "#2d1b2e", lineHeight: 1.6, marginBottom: 24 },
+  buttons: { display: "flex", gap: 12 },
+  cancelBtn: { flex: 1, background: "#f0f0f0", border: "none", borderRadius: 40, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer", color: "#666" },
+  acceptBtn: { flex: 1, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 40, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer", color: "#fff" },
+};
 
 const styles: Record<string, React.CSSProperties> = {
   page: { minHeight: "100vh", background: "linear-gradient(160deg, #fff0f5 0%, #fdf2f8 60%, #ffe4ec 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e", display: "flex", flexDirection: "column" },
@@ -366,13 +449,17 @@ const styles: Record<string, React.CSSProperties> = {
   input: { width: "100%", background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 12, color: "#2d1b2e", fontSize: 15, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "13px 16px", transition: "all 0.2s" },
   phoneWrap: { display: "flex", alignItems: "stretch" },
   phonePrefix: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: "12px 0 0 12px", color: "#e91e63", fontWeight: 700, padding: "13px 14px", fontSize: 15, display: "flex", alignItems: "center", borderRight: "none" },
+  politicasNotice: { display: "flex", alignItems: "center", margin: "16px 0", padding: "12px", background: "rgba(255,240,247,0.8)", borderRadius: 12 },
+  politicasLink: { background: "none", border: "none", color: "#e91e63", fontWeight: 600, cursor: "pointer", textDecoration: "underline", fontSize: 13 },
   primaryBtn: { width: "100%", background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 16, color: "#fff", fontSize: 16, fontWeight: 700, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "16px", cursor: "pointer", marginTop: 8, boxShadow: "0 8px 32px rgba(233,30,99,0.3)", transition: "all 0.2s" },
   btnDisabled: { opacity: 0.5, cursor: "not-allowed", boxShadow: "none" },
   errorMsg: { background: "rgba(220,50,80,0.1)", border: "1px solid rgba(220,50,80,0.3)", borderRadius: 12, color: "#c62a5e", fontSize: 13, padding: "12px 16px", marginTop: 8 },
   disclaimer: { fontSize: 12, color: "rgba(45,27,46,0.4)", textAlign: "center", marginTop: 12, lineHeight: 1.5 },
-  successCard: { maxWidth: 420, margin: "80px auto", padding: "48px 32px", background: "rgba(255,255,255,0.95)", border: "1.5px solid rgba(255,110,180,0.3)", borderRadius: 28, textAlign: "center", boxShadow: "0 20px 80px rgba(233,30,99,0.1)" },
-  successIcon: { fontSize: 56, marginBottom: 20 },
-  successTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 30, fontWeight: 800, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: "0 0 16px" },
-  successText: { fontSize: 15, color: "rgba(45,27,46,0.6)", lineHeight: 1.6, margin: "0 0 12px" },
+  successCard: { maxWidth: 420, margin: "40px auto", padding: "32px 24px", background: "rgba(255,255,255,0.95)", border: "1.5px solid rgba(255,110,180,0.3)", borderRadius: 28, textAlign: "center", boxShadow: "0 20px 80px rgba(233,30,99,0.1)" },
+  successIcon: { fontSize: 48, marginBottom: 16 },
+  successTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 26, fontWeight: 800, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: "0 0 12px" },
+  successText: { fontSize: 14, color: "rgba(45,27,46,0.6)", lineHeight: 1.5, margin: "0 0 10px" },
+  aliasCard: { background: "#f0f0f0", padding: 12, borderRadius: 12, margin: "12px 0", textAlign: "center" },
+  whatsappBtn: { display: "block", background: "#25D366", color: "#fff", textDecoration: "none", padding: "14px", borderRadius: 40, margin: "16px 0", fontWeight: 700, fontSize: 14, textAlign: "center" },
   footer: { textAlign: "center", padding: "20px", borderTop: "1px solid rgba(255,110,180,0.1)" },
 };
