@@ -75,7 +75,6 @@ function PoliticasModal({ onClose, onAccept }: { onClose: () => void; onAccept: 
           <p><strong>3.</strong> Se enviarán recordatorios antes del turno. Si no confirmás asistencia, se puede perder la seña.</p>
           <p><strong>4.</strong> Tiempo de tolerancia: <strong>5 minutos</strong>. Pasado ese tiempo se cobrará un adicional de $5.000.</p>
           <p><strong>5.</strong> No se permiten acompañantes.</p>
-          <p><strong>6.</strong> El lavado pre técnico está incluido. Corte de puntas incluido (flequillo no, extra $10.000).</p>
         </div>
         <div style={modalStyles.buttons}>
           <button style={modalStyles.cancelBtn} onClick={onClose}>Leer más tarde</button>
