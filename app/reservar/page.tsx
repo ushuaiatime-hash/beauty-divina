@@ -9,15 +9,13 @@ const supabase = createClient(
 );
 
 const SERVICES = [
-  { id: 1, name: "Manicuria Semipermanente", price: 8000, duration: 60, icon: "💅", desc: "Esmaltado de larga duración, hasta 3 semanas" },
-  { id: 2, name: "Pedicuría Completa", price: 9500, duration: 75, icon: "🦶", desc: "Cuidado completo de pies con esmaltado" },
-  { id: 3, name: "Limpieza Facial Profunda", price: 12000, duration: 90, icon: "✨", desc: "Limpieza, hidratación y extracción profesional" },
-  { id: 4, name: "Depilación Piernas", price: 7500, duration: 45, icon: "🌸", desc: "Cera caliente o fría, piernas completas" },
+  { id: 1, name: "Pedicuria", price: 8000, duration: 60, icon: "💅🏻", desc: "Tratamiento completo de pies" },
+  { id: 2, name: "Cosmetologia", price: 9500, duration: 75, icon: "✨", desc: "Cuidado facial profesional" },
+  { id: 3, name: "Depilación Definitiva", price: 12000, duration: 90, icon: "🌸", desc: "Depilación láser" },
 ];
 
 const PROFESSIONALS = [
-  { id: 1, name: "Milagros Dominguez", role: "Uñas & Pedicura", avatar: "M", services: [1, 2], color: "#ff6eb4" },
-  { id: 2, name: "Micaela Gomez", role: "Cosmetología", avatar: "Mi", services: [3, 4], color: "#c44dff" },
+  { id: 1, name: "Milagros Dominguez", role: "Uñas & Pedicura", avatar: "M", services: [1, 2, 3], color: "#ff6eb4" },
 ];
 
 const TIME_SLOTS = [
@@ -136,15 +134,14 @@ export default function ReservarPage() {
     
     const [year, month, day] = selectedDate.split("-");
     const msg = encodeURIComponent(
-      `🌸 NUEVA RESERVA CON SEÑA PENDIENTE - Beauty Divina\n\n` +
+      `✨️ NUEVA RESERVA CON SEÑA PENDIENTE - Beauty Divina\n\n` +
       `👤 Cliente: ${clientName}\n` +
       `📱 WhatsApp: +${fullPhone}\n` +
       `💅 Servicio: ${selectedService.name}\n` +
-      `👩‍💼 Profesional: ${selectedProfessional.name}\n` +
+      `👩🏻‍💼 Profesional: ${selectedProfessional.name}\n` +
       `📆 Fecha: ${day}/${month}/${year}\n` +
       `⏰ Hora: ${selectedTime}\n` +
-      `💰 Precio total: $${selectedService.price.toLocaleString("es-AR")}\n` +
-      `💸 Seña: $5.000\n\n` +
+      `💰 Precio total: $5.000\n\n` +
       `📲 Alias para transferir: ${OWNER.alias}\n` +
       `👤 Titular: ${OWNER.titular}\n\n` +
       `🔔 La clienta debe enviar el comprobante de pago para confirmar el turno.\n` +
@@ -163,12 +160,12 @@ export default function ReservarPage() {
         <style>{globalCSS}</style>
         <div style={modalStyles.overlay}>
           <div style={modalStyles.modal}>
-            <h3 style={modalStyles.title}>🌸 POLÍTICAS DE TRABAJO</h3>
+            <h3 style={modalStyles.title}>✨️ POLÍTICAS DE TRABAJO 🧚🏻‍♀️✨</h3>
             <div style={modalStyles.content}>
               <p><strong>1.</strong> Las sesiones son con turno previo, reservando con una SEÑA de <strong>$5.000</strong>. La seña NO ES REEMBOLSABLE. Sirve para reprogramar avisando mínimo 24hs antes.</p>
               <p><strong>2.</strong> Una vez que elijas el servicio, completás tus datos y TRANSFERÍS la seña al alias indicado. Luego envías el comprobante por WhatsApp.</p>
               <p><strong>3.</strong> Se enviarán recordatorios antes del turno. Si no confirmás asistencia, se puede perder la seña.</p>
-              <p><strong>4.</strong> Tiempo de tolerancia: <strong>5 minutos</strong>. Pasado ese tiempo se cobrará un adicional de $5.000.</p>
+              <p><strong>4.</strong> Tiempo de tolerancia: <strong>15 minutos</strong>. Pasado ese tiempo se cobrará un adicional de <strong>$5.000</strong>.</p>
               <p><strong>5.</strong> No se permiten acompañantes.</p>
               <p><strong>6.</strong> Al aceptar, podrás ver los servicios disponibles y reservar tu turno.</p>
             </div>
@@ -212,13 +209,16 @@ export default function ReservarPage() {
   }
 
   return (
-    <div style={styles.page}>
+    <div style={{ ...styles.page, background: "linear-gradient(160deg, #f5e0ec 0%, #f0d9e6 60%, #fce4f0 100%)" }}>
       <style>{globalCSS}</style>
       
       <header style={styles.header}>
         <div style={styles.logoWrap}>
           <div style={styles.logoDot} />
-          <span style={styles.logoText}>Beauty Divina</span>
+          <div style={styles.logoPlaceholder}>
+            <span style={styles.logoEmoji}>💅🏻</span>
+            <span style={styles.logoText}>Beauty Divina</span>
+          </div>
         </div>
         <p style={styles.logoSub}>Sistema de Turnos Online</p>
       </header>
@@ -240,7 +240,7 @@ export default function ReservarPage() {
       <main style={styles.main}>
         {step === 1 && (
           <div style={styles.stepWrap} className="fadeIn">
-            <h2 style={styles.stepTitle}>¿Qué servicio querés?</h2>
+            <h2 style={styles.stepTitle}>✨ ¿Qué servicio querés? ✨</h2>
             <p style={styles.stepSub}>Elegí el tratamiento que más te guste</p>
             <div style={styles.serviceGrid}>
               {SERVICES.map((s) => (
@@ -261,7 +261,7 @@ export default function ReservarPage() {
 
         {step === 2 && (
           <div style={styles.stepWrap} className="fadeIn">
-            <h2 style={styles.stepTitle}>¿Con quién querés atenderte?</h2>
+            <h2 style={styles.stepTitle}>✨ ¿Con quién querés atenderte? ✨</h2>
             <p style={styles.stepSub}>Elegí tu profesional de confianza</p>
             <div style={styles.profGrid}>
               {availableProfessionals.map((p) => (
@@ -278,7 +278,7 @@ export default function ReservarPage() {
 
         {step === 3 && (
           <div style={styles.stepWrap} className="fadeIn">
-            <h2 style={styles.stepTitle}>¿Cuándo te viene bien?</h2>
+            <h2 style={styles.stepTitle}>✨ ¿Cuándo te viene bien? ✨</h2>
             <p style={styles.stepSub}>Seleccioná fecha y horario disponible</p>
             <div style={styles.calendarScroll}>
               {calendarDates.map((d) => {
@@ -294,7 +294,7 @@ export default function ReservarPage() {
                 );
               })}
             </div>
-            <h3 style={styles.slotTitle}>Horarios disponibles</h3>
+            <h3 style={styles.slotTitle}>✨ Horarios disponibles ✨</h3>
             <div style={styles.slotGrid}>
               {TIME_SLOTS.map((t) => {
                 const isBooked = bookedSlots.includes(t);
@@ -317,15 +317,15 @@ export default function ReservarPage() {
 
         {step === 4 && (
           <div style={styles.stepWrap} className="fadeIn">
-            <h2 style={styles.stepTitle}>Tus datos</h2>
+            <h2 style={styles.stepTitle}>✨ Tus datos ✨</h2>
             <p style={styles.stepSub}>Último paso para reservar tu turno</p>
             <div style={styles.summaryCard}>
               <h4 style={styles.summaryTitle}>📋 Resumen de tu turno</h4>
-              <div style={styles.summaryRow}><span>💅 Servicio</span><strong>{selectedService?.name}</strong></div>
-              <div style={styles.summaryRow}><span>👩‍💼 Profesional</span><strong>{selectedProfessional?.name}</strong></div>
+              <div style={styles.summaryRow}><span>💅🏻 Servicio</span><strong>{selectedService?.name}</strong></div>
+              <div style={styles.summaryRow}><span>👩🏻‍💼 Profesional</span><strong>{selectedProfessional?.name}</strong></div>
               <div style={styles.summaryRow}><span>📆 Fecha</span><strong>{formatDisplayDate(selectedDate)}</strong></div>
               <div style={styles.summaryRow}><span>⏰ Hora</span><strong>{selectedTime}</strong></div>
-              <div style={styles.summaryRow}><span>💰 Precio total</span><strong style={{ color: "#e91e63" }}>${selectedService?.price.toLocaleString("es-AR")}</strong></div>
+              <div style={styles.summaryRow}><span>💰 Precio total</span><strong style={{ color: "#e91e63" }}>$5.000</strong></div>
               <div style={styles.summaryRow}><span>💸 Seña requerida</span><strong style={{ color: "#e91e63" }}>$5.000</strong></div>
             </div>
             
@@ -346,11 +346,11 @@ export default function ReservarPage() {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Tu nombre completo *</label>
+              <label style={styles.label}>✨ Tu nombre completo ✨</label>
               <input style={styles.input} placeholder="Ej: María García" value={clientName} onChange={(e) => setClientName(e.target.value)} />
             </div>
             <div style={styles.formGroup}>
-              <label style={styles.label}>Tu WhatsApp <span style={{ opacity: 0.6, fontSize: 12 }}>(sin código de país)</span> *</label>
+              <label style={styles.label}>✨ Tu WhatsApp ✨ <span style={{ opacity: 0.6, fontSize: 12 }}>(sin código de país)</span></label>
               <div style={styles.phoneWrap}>
                 <span style={styles.phonePrefix}>+54</span>
                 <input style={{ ...styles.input, borderRadius: "0 12px 12px 0", borderLeft: "none" }} placeholder="Ej: 1134567890" value={clientPhone} onChange={(e) => setClientPhone(e.target.value.replace(/\D/g, ""))} maxLength={12} inputMode="tel" />
@@ -358,7 +358,7 @@ export default function ReservarPage() {
             </div>
             {error && <div style={styles.errorMsg}>{error}</div>}
             <button style={{ ...styles.primaryBtn, ...(loading ? styles.btnDisabled : {}) }} disabled={loading} onClick={handleReservar}>
-              {loading ? "Reservando..." : "✨ Reservar turno"}
+              {loading ? "Reservando..." : "✨ Reservar turno ✨"}
             </button>
             <p style={styles.disclaimer}>Al reservar, se te pedirá una seña de $5.000 para confirmar el turno. 🌸</p>
           </div>
@@ -395,10 +395,12 @@ const modalStyles: Record<string, React.CSSProperties> = {
 };
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", background: "linear-gradient(160deg, #fff0f5 0%, #fdf2f8 60%, #ffe4ec 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e", display: "flex", flexDirection: "column" },
+  page: { minHeight: "100vh", background: "linear-gradient(160deg, #f5e0ec 0%, #f0d9e6 60%, #fce4f0 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e", display: "flex", flexDirection: "column" },
   header: { textAlign: "center", padding: "40px 20px 20px", background: "linear-gradient(180deg, rgba(255,110,180,0.08) 0%, transparent 100%)", borderBottom: "1px solid rgba(255,110,180,0.1)" },
   logoWrap: { display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 4 },
   logoDot: { width: 10, height: 10, borderRadius: "50%", background: "linear-gradient(135deg, #ff6eb4, #c44dff)", boxShadow: "0 0 12px #ff6eb4" },
+  logoPlaceholder: { display: "flex", alignItems: "center", gap: 8 },
+  logoEmoji: { fontSize: 28 },
   logoText: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 28, fontWeight: 800, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" },
   logoSub: { margin: 0, fontSize: 13, color: "rgba(45,27,46,0.5)", letterSpacing: "0.15em", textTransform: "uppercase" },
   progressWrap: { display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 20px", gap: 0, flexWrap: "wrap", rowGap: 8 },

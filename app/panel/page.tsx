@@ -52,10 +52,9 @@ export default function PanelPage() {
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [weekDates] = useState(getWeekDates());
   const [services, setServices] = useState<Service[]>([
-    { name: "Manicuria Semipermanente", price: 8000, active: true },
-    { name: "Pedicuría Completa", price: 9500, active: true },
-    { name: "Limpieza Facial Profunda", price: 12000, active: true },
-    { name: "Depilación Piernas", price: 7500, active: true },
+    { name: "Pedicuria", price: 8000, active: true },
+    { name: "Cosmetologia", price: 9500, active: true },
+    { name: "Depilación Definitiva", price: 12000, active: true },
   ]);
   const [enabledSlots, setEnabledSlots] = useState<string[]>(ALL_TIME_SLOTS);
   const [blockedSlotsByDay, setBlockedSlotsByDay] = useState<BlockedSlot[]>([]);
@@ -150,13 +149,13 @@ export default function PanelPage() {
       `🌸 TURNO CONFIRMADO - Beauty Divina 🌸\n\n` +
       `Hola ${apt.client_name} 👋\n\n` +
       `✅ Tu turno ha sido CONFIRMADO luego de recibir tu comprobante de seña.\n\n` +
-      `📅 Fecha: ${d}/${m}/${y}\n` +
-      `⏰ Hora: ${apt.time}hs\n` +
-      `💅 Servicio: ${apt.service_name}\n` +
-      `👩‍💼 Profesional: ${apt.professional_name}\n` +
-      `📍 Dirección: Cap Cairo 601, Monte Grande\n\n` +
+      `📅 FECHA: ${d}/${m}/${y}\n` +
+      `⏰ HORA: ${apt.time}\n` +
+      `💅🏻 SERVICIO: ${apt.service_name}\n` +
+      `👩🏻‍💼 PROFESIONAL: ${apt.professional_name}\n` +
+      `📍 Dirección: Cap. O. Cairo 601, Monte Grande\n\n` +
       `📋 Recordá:\n` +
-      `• Tolerancia de 5 minutos (pasado ese tiempo se cobra adicional)\n` +
+      `• Tolerancia de 15 minutos (pasado ese tiempo se cobra adicional)\n` +
       `• No se permiten acompañantes\n` +
       `• La seña NO es reembolsable\n` +
       `• Cancelá con 24hs de anticipación para reprogramar\n\n` +
@@ -178,7 +177,7 @@ export default function PanelPage() {
     const [y, m, d] = moveDate.split("-");
     const msg = encodeURIComponent(
       `📅 Turno Reprogramado - Beauty Divina\n\nHola ${apt.client_name} 👋\nTu turno fue reprogramado:\n\n` +
-      `💅 ${apt.service_name}\n👩‍💼 ${apt.professional_name}\n📆 Nueva fecha: ${d}/${m}/${y} a las ${moveTime}\n📍 Cap Cairo 601, Monte Grande\n\nSi tenés dudas, escribinos 💕`
+      `💅 ${apt.service_name}\n👩‍💼 ${apt.professional_name}\n📆 Nueva fecha: ${d}/${m}/${y} a las ${moveTime}\n📍 Cap. O. Cairo 601, Monte Grande\n\nSi tenés dudas, escribinos 💕`
     );
     window.open(`https://wa.me/${apt.client_phone}?text=${msg}`, "_blank");
     setMoveModal({ open: false, apt: null });
@@ -232,7 +231,7 @@ export default function PanelPage() {
           />
           {pinError && <p style={pinStyles.pinErrTxt}>PIN incorrecto. Intentá de nuevo.</p>}
           <button style={pinStyles.btn} onClick={handlePinSubmit}>Ingresar →</button>
-          <p style={pinStyles.footer}>Beauty Divina · Cap Cairo 601, Monte Grande</p>
+          <p style={pinStyles.footer}>Beauty Divina · Cap. O. Cairo 601, Monte Grande</p>
         </div>
       </div>
     );
@@ -250,7 +249,7 @@ export default function PanelPage() {
           </div>
           <button style={dashboardStyles.logoutBtn} onClick={() => setAuthenticated(false)}>Salir</button>
         </div>
-        <p style={dashboardStyles.headerSub}>Panel de gestión · Cap Cairo 601, Monte Grande</p>
+        <p style={dashboardStyles.headerSub}>Panel de gestión · Cap. O. Cairo 601, Monte Grande</p>
       </header>
 
       <div style={dashboardStyles.statsRow}>
