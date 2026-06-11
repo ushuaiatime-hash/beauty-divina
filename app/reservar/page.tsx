@@ -215,10 +215,16 @@ export default function ReservarPage() {
       <header style={styles.header}>
         <div style={styles.logoWrap}>
           <div style={styles.logoDot} />
-          <div style={styles.logoPlaceholder}>
-            <span style={styles.logoEmoji}>💅🏻</span>
-            <span style={styles.logoText}>Beauty Divina</span>
-          </div>
+          <img 
+            src="/logo.jpg" 
+            alt="Beauty Divina" 
+            style={{ 
+              height: "60px", 
+              width: "auto", 
+              maxWidth: "200px",
+              objectFit: "contain"
+            }} 
+          />
         </div>
         <p style={styles.logoSub}>Sistema de Turnos Online</p>
       </header>
@@ -399,9 +405,6 @@ const styles: Record<string, React.CSSProperties> = {
   header: { textAlign: "center", padding: "40px 20px 20px", background: "linear-gradient(180deg, rgba(255,110,180,0.08) 0%, transparent 100%)", borderBottom: "1px solid rgba(255,110,180,0.1)" },
   logoWrap: { display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 4 },
   logoDot: { width: 10, height: 10, borderRadius: "50%", background: "linear-gradient(135deg, #ff6eb4, #c44dff)", boxShadow: "0 0 12px #ff6eb4" },
-  logoPlaceholder: { display: "flex", alignItems: "center", gap: 8 },
-  logoEmoji: { fontSize: 28 },
-  logoText: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 28, fontWeight: 800, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" },
   logoSub: { margin: 0, fontSize: 13, color: "rgba(45,27,46,0.5)", letterSpacing: "0.15em", textTransform: "uppercase" },
   progressWrap: { display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 20px", gap: 0, flexWrap: "wrap", rowGap: 8 },
   progressItem: { display: "flex", alignItems: "center", gap: 6 },
