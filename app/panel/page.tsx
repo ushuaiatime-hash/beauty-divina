@@ -82,6 +82,7 @@ export default function PanelPage() {
       setStatsToday(all.filter(a => a.date === today && a.status !== "cancelled").length);
       setStatsPending(all.filter(a => a.status === "pending" || a.status === "pending_seña").length);
       const thisMonth = formatDate(new Date()).slice(0, 7);
+      // CORREGIDO: suma los precios de los turnos confirmados
       setStatsRevenue(all.filter(a => a.date.startsWith(thisMonth) && a.status === "confirmed").reduce((sum: number, a: Appointment) => sum + (a.price || 0), 0));
       const svcMap: Record<string, { count: number; revenue: number }> = {};
       all.forEach((a: Appointment) => {
@@ -341,9 +342,31 @@ export default function PanelPage() {
                           </button>
                         )}
                         {apt.status === "confirmed" && (
-                          <button style={dashboardStyles.btnComplete} onClick={() => completeAppointment(apt)}>
-                            ✓ Completar
-                          </button>
+                          <>
+                            <button style={dashboardStyles.btnComplete} onClick={() => completeAppointment(apt)}>
+                              ✓ Completar
+                            </button>
+                            <button 
+                              onClick={() => {
+                                const [y, m, d] = apt.date.split("-");
+                                const mensaje = encodeURIComponent(
+                                  `🌸 RECORDATORIO - Beauty Divina\n\n` +
+                                  `Hola ${apt.client_name} ✨\n\n` +
+                                  `Te recordamos que tienes un turno en 24 horas:\n\n` +
+                                  `📅 ${d}/${m}/${y}\n` +
+                                  `⏰ ${apt.time}hs\n` +
+                                  `💅🏻 ${apt.service_name}\n` +
+                                  `👩🏻‍💼 ${apt.professional_name}\n` +
+                                  `📍 Cap. O. Cairo 601, Monte Grande\n\n` +
+                                  `Confirmá tu asistencia respondiendo este mensaje 🧚🏻‍♀️✨`
+                                );
+                                window.open(`https://wa.me/${apt.client_phone}?text=${mensaje}`, "_blank");
+                              }}
+                              style={{ background: "#f59e0b", border: "none", borderRadius: 12, color: "#fff", fontSize: 12, fontWeight: 700, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                            >
+                              ⏰ Recordatorio 24hs
+                            </button>
+                          </>
                         )}
                         <button style={dashboardStyles.btnMove} onClick={() => { setMoveModal({ open: true, apt }); setMoveDate(apt.date); setMoveTime(apt.time); }}>
                           📅 Mover
