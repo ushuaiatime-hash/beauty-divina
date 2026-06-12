@@ -207,7 +207,7 @@ export default function ReservarPage() {
   }
 
   return (
-    <div style={{ ...styles.page, background: "linear-gradient(160deg, #f5e0ec 0%, #f0d9e6 60%, #fce4f0 100%)" }}>
+    <div style={{ ...styles.page, background:  "linear-gradient(160deg, #f0c4c4 0%, #e8b8b8 60%, #f2c8c8 100%)" }}>
       <style>{globalCSS}</style>
       
       <header style={{ ...styles.header, padding: "30px 20px 20px" }}>
