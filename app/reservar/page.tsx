@@ -207,7 +207,7 @@ export default function ReservarPage() {
   }
 
   return (
-    <div style={{ ...styles.page, background:  "linear-gradient(160deg, #f0c4c4 0%, #e8b8b8 60%, #f2c8c8 100%)" }}>
+    <div style={{ ...styles.page, background: "linear-gradient(160deg, #ff1493 0%, #ff69b4 60%, #ff85c1 100%)" }}>
       <style>{globalCSS}</style>
       
       <header style={{ ...styles.header, padding: "30px 20px 20px" }}>
@@ -397,7 +397,7 @@ const modalStyles: Record<string, React.CSSProperties> = {
 };
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", background: "linear-gradient(160deg, #f5e0ec 0%, #f0d9e6 60%, #fce4f0 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e", display: "flex", flexDirection: "column" },
+  page: { minHeight: "100vh", background: "linear-gradient(160deg, #ff1493 0%, #ff69b4 60%, #ff85c1 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e", display: "flex", flexDirection: "column" },
   header: { textAlign: "center", padding: "30px 20px 20px", background: "linear-gradient(180deg, rgba(255,110,180,0.08) 0%, transparent 100%)", borderBottom: "1px solid rgba(255,110,180,0.1)" },
   logoWrap: { display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 4 },
   logoSub: { margin: 0, fontSize: 12, color: "rgba(45,27,46,0.5)", letterSpacing: "0.15em", textTransform: "uppercase" },
