@@ -24,7 +24,6 @@ const TIME_SLOTS = [
   "16:00","16:30","17:00","17:30","18:00",
 ];
 
-// Datos de la dueña
 const OWNER = {
   whatsapp: "541155916379",
   alias: "Milagrosdominguez150",
@@ -153,7 +152,6 @@ export default function ReservarPage() {
     setLoading(false);
   }
 
-  // Pantalla inicial de políticas (obligatoria)
   if (mostrarPoliticas) {
     return (
       <div style={styles.page}>
@@ -212,21 +210,20 @@ export default function ReservarPage() {
     <div style={{ ...styles.page, background: "linear-gradient(160deg, #f5e0ec 0%, #f0d9e6 60%, #fce4f0 100%)" }}>
       <style>{globalCSS}</style>
       
-      <header style={styles.header}>
+      <header style={{ ...styles.header, padding: "30px 20px 20px" }}>
         <div style={styles.logoWrap}>
-          <div style={styles.logoDot} />
           <img 
-            src="/logo.jpg" 
+            src="/logo.png" 
             alt="Beauty Divina" 
             style={{ 
-              height: "60px", 
-              width: "auto", 
-              maxWidth: "200px",
-              objectFit: "contain"
+              width: "100%", 
+              maxWidth: "300px", 
+              height: "auto",
+              display: "block",
+              margin: "0 auto"
             }} 
           />
         </div>
-        <p style={styles.logoSub}>Sistema de Turnos Online</p>
       </header>
 
       <div style={styles.progressWrap}>
@@ -243,7 +240,7 @@ export default function ReservarPage() {
         ))}
       </div>
 
-      <main style={styles.main}>
+      <main style={{ ...styles.main, maxWidth: 500 }}>
         {step === 1 && (
           <div style={styles.stepWrap} className="fadeIn">
             <h2 style={styles.stepTitle}>✨ ¿Qué servicio querés? ✨</h2>
@@ -335,7 +332,6 @@ export default function ReservarPage() {
               <div style={styles.summaryRow}><span>💸 Seña requerida</span><strong style={{ color: "#e91e63" }}>$5.000</strong></div>
             </div>
             
-            {/* Google Maps - Ubicación exacta */}
             <div style={styles.mapContainer}>
               <iframe 
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3279.5!2d-58.4696!3d-34.8!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bcc9a5c4e5c5e5%3A0x0!2zQ2FwLiBPLiBDYWlybyA2MDEsIEIxODQyQ1NDIE1vbnRlIEdyYW5kZSwgUHJvdmluY2lhIGRlIEJ1ZW5vcyBBaXJlcywgQXJnZW50aW5h!5e0!3m2!1ses!2sar!4v1" 
@@ -402,10 +398,9 @@ const modalStyles: Record<string, React.CSSProperties> = {
 
 const styles: Record<string, React.CSSProperties> = {
   page: { minHeight: "100vh", background: "linear-gradient(160deg, #f5e0ec 0%, #f0d9e6 60%, #fce4f0 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e", display: "flex", flexDirection: "column" },
-  header: { textAlign: "center", padding: "40px 20px 20px", background: "linear-gradient(180deg, rgba(255,110,180,0.08) 0%, transparent 100%)", borderBottom: "1px solid rgba(255,110,180,0.1)" },
-  logoWrap: { display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 4 },
-  logoDot: { width: 10, height: 10, borderRadius: "50%", background: "linear-gradient(135deg, #ff6eb4, #c44dff)", boxShadow: "0 0 12px #ff6eb4" },
-  logoSub: { margin: 0, fontSize: 13, color: "rgba(45,27,46,0.5)", letterSpacing: "0.15em", textTransform: "uppercase" },
+  header: { textAlign: "center", padding: "30px 20px 20px", background: "linear-gradient(180deg, rgba(255,110,180,0.08) 0%, transparent 100%)", borderBottom: "1px solid rgba(255,110,180,0.1)" },
+  logoWrap: { display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  logoSub: { margin: 0, fontSize: 12, color: "rgba(45,27,46,0.5)", letterSpacing: "0.15em", textTransform: "uppercase" },
   progressWrap: { display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 20px", gap: 0, flexWrap: "wrap", rowGap: 8 },
   progressItem: { display: "flex", alignItems: "center", gap: 6 },
   progressCircle: { width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.8)", border: "2px solid rgba(45,27,46,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 600, color: "rgba(45,27,46,0.4)", transition: "all 0.3s" },
@@ -413,7 +408,7 @@ const styles: Record<string, React.CSSProperties> = {
   progressLabel: { fontSize: 12, color: "rgba(45,27,46,0.4)", fontWeight: 500, transition: "color 0.3s" },
   progressLine: { width: 24, height: 2, background: "rgba(45,27,46,0.1)", margin: "0 4px", transition: "background 0.3s" },
   progressLineActive: { background: "linear-gradient(90deg, #ff6eb4, #e91e63)" },
-  main: { flex: 1, padding: "0 16px 40px", maxWidth: 600, width: "100%", margin: "0 auto" },
+  main: { flex: 1, padding: "0 16px 40px", maxWidth: 500, width: "100%", margin: "0 auto" },
   stepWrap: { display: "flex", flexDirection: "column", gap: 0 },
   stepTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 26, fontWeight: 800, margin: "0 0 6px", color: "#2d1b2e" },
   stepSub: { color: "rgba(45,27,46,0.5)", fontSize: 14, margin: "0 0 24px" },
