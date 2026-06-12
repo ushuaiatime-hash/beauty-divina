@@ -191,9 +191,9 @@ export default function ReservarPage() {
           <p style={styles.successText}>Tu turno está <strong>pendiente de confirmación</strong>.</p>
           <p style={styles.successText}>Por favor, transferí la seña de <strong>$5.000</strong> a:</p>
           <div style={styles.aliasCard}>
-  <p style={{ color: "#000000" }}><strong>Alias:</strong> {OWNER.alias}</p>
-  <p style={{ color: "#000000" }}><strong>Titular:</strong> {OWNER.titular}</p>
-</div>
+            <p><strong>Alias:</strong> {OWNER.alias}</p>
+            <p><strong>Titular:</strong> {OWNER.titular}</p>
+          </div>
           <p style={styles.successText}>Luego enviá el comprobante por WhatsApp para confirmar tu turno.</p>
           <a href={`https://wa.me/${OWNER.whatsapp}?text=Hola! Ya realicé la transferencia de la seña para mi turno de ${selectedService?.name} el ${formatDisplayDate(selectedDate)} a las ${selectedTime}. Mi nombre es ${clientName}.`} target="_blank" style={styles.whatsappBtn}>
             💬 Enviar comprobante por WhatsApp
@@ -207,7 +207,7 @@ export default function ReservarPage() {
   }
 
   return (
-    <div style={{ ...styles.page, background: "radial-gradient(circle at 10% 20%, #ff1493, #ff69b4, #ff85c1, #ffb6d9)" }}>
+    <div style={styles.page}>
       <style>{globalCSS}</style>
       
       <header style={{ ...styles.header, padding: "30px 20px 20px" }}>
@@ -226,13 +226,13 @@ export default function ReservarPage() {
         </div>
       </header>
 
-      <div style={{ ...styles.progressWrap }}>
+      <div style={styles.progressWrap}>
         {[1,2,3,4].map((s) => (
           <div key={s} style={styles.progressItem}>
             <div style={{ ...styles.progressCircle, ...(step >= s ? styles.progressActive : {}) }}>
               {step > s ? "✓" : s}
             </div>
-            <span style={{ ...styles.progressLabel, ...(step >= s ? { color: "#ffffff" } : { color: "#ffffff" }) }}>
+            <span style={{ ...styles.progressLabel, ...(step >= s ? { color: "#e91e63" } : { color: "#a0738c" }) }}>
               {s === 1 ? "Servicio" : s === 2 ? "Profesional" : s === 3 ? "Fecha" : "Datos"}
             </span>
             {s < 4 && <div style={{ ...styles.progressLine, ...(step > s ? styles.progressLineActive : {}) }} />}
@@ -243,8 +243,8 @@ export default function ReservarPage() {
       <main style={{ ...styles.main, maxWidth: 500 }}>
         {step === 1 && (
           <div style={styles.stepWrap} className="fadeIn">
-            <h2 style={{ ...styles.stepTitle, color: "#ffffff" }}>✨ ¿Qué servicio querés? ✨</h2>
-            <p style={{ ...styles.stepSub, color: "#ffffff" }}>Elegí el tratamiento que más te guste</p>
+            <h2 style={styles.stepTitle}>✨ ¿Qué servicio querés? ✨</h2>
+            <p style={styles.stepSub}>Elegí el tratamiento que más te guste</p>
             <div style={styles.serviceGrid}>
               {SERVICES.map((s) => (
                 <div key={s.id} style={{ ...styles.serviceCard, ...(selectedService?.id === s.id ? styles.serviceCardActive : {}) }} className="card-hover" onClick={() => { setSelectedService(s); setStep(2); }}>
@@ -264,8 +264,8 @@ export default function ReservarPage() {
 
         {step === 2 && (
           <div style={styles.stepWrap} className="fadeIn">
-            <h2 style={{ ...styles.stepTitle, color: "#ffffff" }}>✨ ¿Con quién querés atenderte? ✨</h2>
-            <p style={{ ...styles.stepSub, color: "#ffffff" }}>Elegí tu profesional de confianza</p>
+            <h2 style={styles.stepTitle}>✨ ¿Con quién querés atenderte? ✨</h2>
+            <p style={styles.stepSub}>Elegí tu profesional de confianza</p>
             <div style={styles.profGrid}>
               {availableProfessionals.map((p) => (
                 <div key={p.id} style={{ ...styles.profCard, ...(selectedProfessional?.id === p.id ? styles.profCardActive : {}) }} className="card-hover" onClick={() => { setSelectedProfessional(p); setStep(3); }}>
@@ -281,8 +281,8 @@ export default function ReservarPage() {
 
         {step === 3 && (
           <div style={styles.stepWrap} className="fadeIn">
-            <h2 style={{ ...styles.stepTitle, color: "#ffffff" }}>✨ ¿Cuándo te viene bien? ✨</h2>
-            <p style={{ ...styles.stepSub, color: "#ffffff" }}>Seleccioná fecha y horario disponible</p>
+            <h2 style={styles.stepTitle}>✨ ¿Cuándo te viene bien? ✨</h2>
+            <p style={styles.stepSub}>Seleccioná fecha y horario disponible</p>
             <div style={styles.calendarScroll}>
               {calendarDates.map((d) => {
                 const dateStr = formatDate(d);
@@ -297,7 +297,7 @@ export default function ReservarPage() {
                 );
               })}
             </div>
-            <h3 style={{ ...styles.slotTitle, color: "#ffffff" }}>✨ Horarios disponibles ✨</h3>
+            <h3 style={styles.slotTitle}>✨ Horarios disponibles ✨</h3>
             <div style={styles.slotGrid}>
               {TIME_SLOTS.map((t) => {
                 const isBooked = bookedSlots.includes(t);
@@ -320,16 +320,16 @@ export default function ReservarPage() {
 
         {step === 4 && (
           <div style={styles.stepWrap} className="fadeIn">
-            <h2 style={{ ...styles.stepTitle, color: "#ffffff" }}>✨ Tus datos ✨</h2>
-            <p style={{ ...styles.stepSub, color: "#ffffff" }}>Último paso para reservar tu turno</p>
+            <h2 style={styles.stepTitle}>✨ Tus datos ✨</h2>
+            <p style={styles.stepSub}>Último paso para reservar tu turno</p>
             <div style={styles.summaryCard}>
               <h4 style={styles.summaryTitle}>📋 Resumen de tu turno</h4>
               <div style={styles.summaryRow}><span>💅🏻 Servicio</span><strong>{selectedService?.name}</strong></div>
               <div style={styles.summaryRow}><span>👩🏻‍💼 Profesional</span><strong>{selectedProfessional?.name}</strong></div>
               <div style={styles.summaryRow}><span>📆 Fecha</span><strong>{formatDisplayDate(selectedDate)}</strong></div>
               <div style={styles.summaryRow}><span>⏰ Hora</span><strong>{selectedTime}</strong></div>
-              <div style={styles.summaryRow}><span>💰 Precio total</span><strong style={{ color: "#ffffff" }}>$5.000</strong></div>
-              <div style={styles.summaryRow}><span>💸 Seña requerida</span><strong style={{ color: "#ffffff" }}>$5.000</strong></div>
+              <div style={styles.summaryRow}><span>💰 Precio total</span><strong style={{ color: "#e91e63" }}>$5.000</strong></div>
+              <div style={styles.summaryRow}><span>💸 Seña requerida</span><strong style={{ color: "#e91e63" }}>$5.000</strong></div>
             </div>
             
             <div style={styles.mapContainer}>
@@ -342,17 +342,17 @@ export default function ReservarPage() {
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
               />
-              <p style={{ fontSize: 12, color: "#ffffff", marginTop: 8, textAlign: "center" }}>
+              <p style={{ fontSize: 12, color: "#a0738c", marginTop: 8, textAlign: "center" }}>
                 📍 {OWNER.direccion}
               </p>
             </div>
 
             <div style={styles.formGroup}>
-              <label style={{ ...styles.label, color: "#ffffff" }}>✨ Tu nombre completo ✨</label>
+              <label style={styles.label}>✨ Tu nombre completo ✨</label>
               <input style={styles.input} placeholder="Ej: María García" value={clientName} onChange={(e) => setClientName(e.target.value)} />
             </div>
             <div style={styles.formGroup}>
-              <label style={{ ...styles.label, color: "#ffffff" }}>✨ Tu WhatsApp ✨ <span style={{ opacity: 0.6, fontSize: 12 }}>(sin código de país)</span></label>
+              <label style={styles.label}>✨ Tu WhatsApp ✨ <span style={{ opacity: 0.6, fontSize: 12 }}>(sin código de país)</span></label>
               <div style={styles.phoneWrap}>
                 <span style={styles.phonePrefix}>+54</span>
                 <input style={{ ...styles.input, borderRadius: "0 12px 12px 0", borderLeft: "none" }} placeholder="Ej: 1134567890" value={clientPhone} onChange={(e) => setClientPhone(e.target.value.replace(/\D/g, ""))} maxLength={12} inputMode="tel" />
@@ -362,12 +362,12 @@ export default function ReservarPage() {
             <button style={{ ...styles.primaryBtn, ...(loading ? styles.btnDisabled : {}) }} disabled={loading} onClick={handleReservar}>
               {loading ? "Reservando..." : "✨ Reservar turno ✨"}
             </button>
-            <p style={{ ...styles.disclaimer, color: "#ffffff" }}>Al reservar, se te pedirá una seña de $5.000 para confirmar el turno. 🌸</p>
+            <p style={styles.disclaimer}>Al reservar, se te pedirá una seña de $5.000 para confirmar el turno. 🌸</p>
           </div>
         )}
       </main>
       <footer style={styles.footer}>
-        <p style={{ margin: 0, opacity: 0.4, fontSize: 12, color: "#ffffff" }}>Beauty Divina © {new Date().getFullYear()}</p>
+        <p style={{ margin: 0, opacity: 0.4, fontSize: 12 }}>Beauty Divina © {new Date().getFullYear()}</p>
       </footer>
     </div>
   );
@@ -397,10 +397,10 @@ const modalStyles: Record<string, React.CSSProperties> = {
 };
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", background: "radial-gradient(circle at 10% 20%, #ff1493, #ff69b4, #ff85c1, #ffb6d9)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#ffffff", display: "flex", flexDirection: "column" },
+  page: { minHeight: "100vh", background: "linear-gradient(160deg, #fff0f5 0%, #fdf2f8 60%, #ffe4ec 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e", display: "flex", flexDirection: "column" },
   header: { textAlign: "center", padding: "30px 20px 20px", background: "linear-gradient(180deg, rgba(255,110,180,0.08) 0%, transparent 100%)", borderBottom: "1px solid rgba(255,110,180,0.1)" },
   logoWrap: { display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  logoSub: { margin: 0, fontSize: 12, color: "#ffffff", letterSpacing: "0.15em", textTransform: "uppercase" },
+  logoSub: { margin: 0, fontSize: 12, color: "rgba(45,27,46,0.5)", letterSpacing: "0.15em", textTransform: "uppercase" },
   progressWrap: { display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 20px", gap: 0, flexWrap: "wrap", rowGap: 8 },
   progressItem: { display: "flex", alignItems: "center", gap: 6 },
   progressCircle: { width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.8)", border: "2px solid rgba(45,27,46,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 600, color: "rgba(45,27,46,0.4)", transition: "all 0.3s" },
@@ -410,8 +410,8 @@ const styles: Record<string, React.CSSProperties> = {
   progressLineActive: { background: "linear-gradient(90deg, #ff6eb4, #e91e63)" },
   main: { flex: 1, padding: "0 16px 40px", maxWidth: 500, width: "100%", margin: "0 auto" },
   stepWrap: { display: "flex", flexDirection: "column", gap: 0 },
-  stepTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 26, fontWeight: 800, margin: "0 0 6px", color: "#ffffff" },
-  stepSub: { color: "#ffffff", fontSize: 14, margin: "0 0 24px" },
+  stepTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 26, fontWeight: 800, margin: "0 0 6px", color: "#2d1b2e" },
+  stepSub: { color: "rgba(45,27,46,0.5)", fontSize: 14, margin: "0 0 24px" },
   serviceGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14, marginBottom: 24 },
   serviceCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 20, padding: "22px 20px", position: "relative", overflow: "hidden", transition: "all 0.25s ease", cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
   serviceCardActive: { border: "1.5px solid #ff6eb4", background: "rgba(255,255,255,1)", boxShadow: "0 0 30px rgba(255,110,180,0.2)" },
@@ -435,7 +435,7 @@ const styles: Record<string, React.CSSProperties> = {
   calDayName: { fontSize: 11, color: "rgba(45,27,46,0.5)", fontWeight: 500, textTransform: "uppercase" },
   calDayNum: { fontSize: 22, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif", lineHeight: 1, color: "#2d1b2e" },
   calDayMonth: { fontSize: 10, color: "rgba(45,27,46,0.5)" },
-  slotTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 16, fontWeight: 700, margin: "0 0 14px", color: "#ffffff" },
+  slotTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 16, fontWeight: 700, margin: "0 0 14px", color: "#2d1b2e" },
   slotGrid: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 },
   slotBtn: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 12, color: "#2d1b2e", fontSize: 14, fontWeight: 600, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "10px 16px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, transition: "all 0.2s", minWidth: 72 },
   slotBooked: { background: "rgba(245,235,240,0.6)", border: "1.5px solid rgba(45,27,46,0.1)", color: "rgba(45,27,46,0.3)", cursor: "not-allowed" },
@@ -446,14 +446,14 @@ const styles: Record<string, React.CSSProperties> = {
   summaryRow: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14, color: "rgba(45,27,46,0.6)", padding: "6px 0", borderBottom: "1px solid rgba(45,27,46,0.05)" },
   mapContainer: { marginTop: 16, marginBottom: 16, borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" },
   formGroup: { marginBottom: 16 },
-  label: { display: "block", fontSize: 13, fontWeight: 600, color: "#ffffff", marginBottom: 8 },
+  label: { display: "block", fontSize: 13, fontWeight: 600, color: "rgba(45,27,46,0.6)", marginBottom: 8 },
   input: { width: "100%", background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 12, color: "#2d1b2e", fontSize: 15, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "13px 16px", transition: "all 0.2s" },
   phoneWrap: { display: "flex", alignItems: "stretch" },
   phonePrefix: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: "12px 0 0 12px", color: "#e91e63", fontWeight: 700, padding: "13px 14px", fontSize: 15, display: "flex", alignItems: "center", borderRight: "none" },
   primaryBtn: { width: "100%", background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 16, color: "#fff", fontSize: 16, fontWeight: 700, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "16px", cursor: "pointer", marginTop: 8, boxShadow: "0 8px 32px rgba(233,30,99,0.3)", transition: "all 0.2s" },
   btnDisabled: { opacity: 0.5, cursor: "not-allowed", boxShadow: "none" },
   errorMsg: { background: "rgba(220,50,80,0.1)", border: "1px solid rgba(220,50,80,0.3)", borderRadius: 12, color: "#c62a5e", fontSize: 13, padding: "12px 16px", marginTop: 8 },
-  disclaimer: { fontSize: 12, textAlign: "center", marginTop: 12, lineHeight: 1.5, color: "#ffffff" },
+  disclaimer: { fontSize: 12, color: "rgba(45,27,46,0.4)", textAlign: "center", marginTop: 12, lineHeight: 1.5 },
   successCard: { maxWidth: 420, margin: "40px auto", padding: "32px 24px", background: "rgba(255,255,255,0.95)", border: "1.5px solid rgba(255,110,180,0.3)", borderRadius: 28, textAlign: "center", boxShadow: "0 20px 80px rgba(233,30,99,0.1)" },
   successIcon: { fontSize: 48, marginBottom: 16 },
   successTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 26, fontWeight: 800, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: "0 0 12px" },
