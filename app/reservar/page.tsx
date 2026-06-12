@@ -191,9 +191,9 @@ export default function ReservarPage() {
           <p style={styles.successText}>Tu turno está <strong>pendiente de confirmación</strong>.</p>
           <p style={styles.successText}>Por favor, transferí la seña de <strong>$5.000</strong> a:</p>
           <div style={styles.aliasCard}>
-            <p><strong>Alias:</strong> {OWNER.alias}</p>
-            <p><strong>Titular:</strong> {OWNER.titular}</p>
-          </div>
+  <p style={{ color: "#000000" }}><strong>Alias:</strong> {OWNER.alias}</p>
+  <p style={{ color: "#000000" }}><strong>Titular:</strong> {OWNER.titular}</p>
+</div>
           <p style={styles.successText}>Luego enviá el comprobante por WhatsApp para confirmar tu turno.</p>
           <a href={`https://wa.me/${OWNER.whatsapp}?text=Hola! Ya realicé la transferencia de la seña para mi turno de ${selectedService?.name} el ${formatDisplayDate(selectedDate)} a las ${selectedTime}. Mi nombre es ${clientName}.`} target="_blank" style={styles.whatsappBtn}>
             💬 Enviar comprobante por WhatsApp
