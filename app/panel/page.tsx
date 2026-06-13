@@ -38,7 +38,7 @@ type Appointment = {
   service_name: string; professional_name: string;
   date: string; time: string; duration_minutes: number; price: number; status: string;
 };
-type Service = { name: string; price: number; active: boolean; };
+type Service = { name: string; price: number; desc: string; active: boolean; };
 type BlockedSlot = { date: string; time: string };
 
 export default function PanelPage() {
@@ -52,15 +52,16 @@ export default function PanelPage() {
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [weekDates] = useState(getWeekDates());
   const [services, setServices] = useState<Service[]>([
-    { name: "Pedicuria", price: 8000, active: true },
-    { name: "Cosmetologia", price: 9500, active: true },
-    { name: "Depilación Definitiva", price: 12000, active: true },
+    { name: "Pedicuria", price: 8000, desc: "Tratamiento completo de pies", active: true },
+    { name: "Cosmetologia", price: 9500, desc: "Cuidado facial profesional", active: true },
+    { name: "Depilación Definitiva", price: 12000, desc: "Depilación láser", active: true },
   ]);
   const [enabledSlots, setEnabledSlots] = useState<string[]>(ALL_TIME_SLOTS);
   const [blockedSlotsByDay, setBlockedSlotsByDay] = useState<BlockedSlot[]>([]);
   const [selectedDayForBlocking, setSelectedDayForBlocking] = useState<string>("");
   const [newServiceName, setNewServiceName] = useState("");
   const [newServicePrice, setNewServicePrice] = useState("");
+  const [newServiceDesc, setNewServiceDesc] = useState("");
   const [moveModal, setMoveModal] = useState<{ open: boolean; apt: Appointment | null }>({ open: false, apt: null });
   const [moveDate, setMoveDate] = useState("");
   const [moveTime, setMoveTime] = useState("");
@@ -82,7 +83,6 @@ export default function PanelPage() {
       setStatsToday(all.filter(a => a.date === today && a.status !== "cancelled").length);
       setStatsPending(all.filter(a => a.status === "pending" || a.status === "pending_seña").length);
       const thisMonth = formatDate(new Date()).slice(0, 7);
-      // CORREGIDO: suma los precios de los turnos confirmados
       setStatsRevenue(all.filter(a => a.date.startsWith(thisMonth) && a.status === "confirmed").reduce((sum: number, a: Appointment) => sum + (a.price || 0), 0));
       const svcMap: Record<string, { count: number; revenue: number }> = {};
       all.forEach((a: Appointment) => {
@@ -204,8 +204,8 @@ export default function PanelPage() {
 
   function addService() {
     if (!newServiceName || !newServicePrice) return;
-    setServices((prev) => [...prev, { name: newServiceName, price: parseInt(newServicePrice), active: true }]);
-    setNewServiceName(""); setNewServicePrice("");
+    setServices((prev) => [...prev, { name: newServiceName, price: parseInt(newServicePrice), desc: newServiceDesc, active: true }]);
+    setNewServiceName(""); setNewServicePrice(""); setNewServiceDesc("");
   }
 
   const maxRev = topServices[0]?.revenue || 1;
@@ -431,6 +431,7 @@ export default function PanelPage() {
                 <div key={i} style={{ ...dashboardStyles.svcCard, ...(!sv.active ? dashboardStyles.svcOff : {}) }}>
                   <div>
                     <p style={dashboardStyles.svcName}>{sv.name}</p>
+                    <p style={dashboardStyles.svcDesc}>{sv.desc}</p>
                     <p style={dashboardStyles.svcPrice}>${sv.price.toLocaleString("es-AR")}</p>
                   </div>
                   <button
@@ -446,6 +447,7 @@ export default function PanelPage() {
             <h3 style={{ ...dashboardStyles.secTitle, marginTop: 28 }}>Agregar servicio</h3>
             <div style={dashboardStyles.addForm}>
               <input style={dashboardStyles.input} placeholder="Nombre del servicio" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
+              <input style={dashboardStyles.input} placeholder="Descripción (ej: 60 min con cera caliente)" value={newServiceDesc} onChange={(e) => setNewServiceDesc(e.target.value)} />
               <input style={dashboardStyles.input} placeholder="Precio (ej: 10000)" inputMode="numeric" value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value.replace(/\D/g, ""))} />
               <button style={dashboardStyles.btnAdd} onClick={addService}>+ Agregar servicio</button>
             </div>
@@ -671,6 +673,7 @@ const dashboardStyles: Record<string, React.CSSProperties> = {
   svcCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,180,210,0.25)", borderRadius: 18, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, boxShadow: "0 2px 10px rgba(233,30,99,0.05)", transition: "opacity 0.2s" },
   svcOff: { opacity: 0.45 },
   svcName: { fontSize: 14, fontWeight: 600, color: "#2d1b2e", marginBottom: 3 },
+  svcDesc: { fontSize: 12, color: "#a0738c", marginBottom: 6 },
   svcPrice: { fontSize: 16, fontWeight: 800, color: "#e91e63" },
   toggleBtn: { border: "none", borderRadius: 20, fontSize: 12, fontWeight: 700, padding: "7px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap", flexShrink: 0 },
   toggleOn: { background: "rgba(16,185,129,0.12)", color: "#059669" },
