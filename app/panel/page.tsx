@@ -38,30 +38,27 @@ type Appointment = {
   service_name: string; professional_name: string;
   date: string; time: string; duration_minutes: number; price: number; status: string;
 };
-type Service = { name: string; price: number; desc: string; active: boolean; };
+type Service = { id: number; name: string; description: string; price: number; duration: number; active: boolean; };
 type BlockedSlot = { date: string; time: string };
 
 export default function PanelPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
-  const [activeTab, setActiveTab] = useState<"turnos"|"servicios"|"horarios"|"facturacion">("turnos");
+  const [activeTab, setActiveTab] = useState<"turnos"|"servicios"|"horarios"|"facturacion"|"marketing">("turnos");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [completedAppointments, setCompletedAppointments] = useState<Appointment[]>([]);
   const [filter, setFilter] = useState<"all"|"pending"|"today">("all");
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [weekDates] = useState(getWeekDates());
-  const [services, setServices] = useState<Service[]>([
-    { name: "Pedicuria", price: 8000, desc: "Tratamiento completo de pies", active: true },
-    { name: "Cosmetologia", price: 9500, desc: "Cuidado facial profesional", active: true },
-    { name: "Depilación Definitiva", price: 12000, desc: "Depilación láser", active: true },
-  ]);
+  const [services, setServices] = useState<Service[]>([]);
   const [enabledSlots, setEnabledSlots] = useState<string[]>(ALL_TIME_SLOTS);
   const [blockedSlotsByDay, setBlockedSlotsByDay] = useState<BlockedSlot[]>([]);
   const [selectedDayForBlocking, setSelectedDayForBlocking] = useState<string>("");
   const [newServiceName, setNewServiceName] = useState("");
   const [newServicePrice, setNewServicePrice] = useState("");
   const [newServiceDesc, setNewServiceDesc] = useState("");
+  const [newServiceDuration, setNewServiceDuration] = useState("60");
   const [moveModal, setMoveModal] = useState<{ open: boolean; apt: Appointment | null }>({ open: false, apt: null });
   const [moveDate, setMoveDate] = useState("");
   const [moveTime, setMoveTime] = useState("");
@@ -72,7 +69,44 @@ export default function PanelPage() {
   const [topServices, setTopServices] = useState<{ name: string; count: number; revenue: number }[]>([]);
   const [billingPeriod, setBillingPeriod] = useState<"day"|"week"|"month">("month");
   const [billingData, setBillingData] = useState<{ date: string; total: number; appointments: Appointment[] }[]>([]);
+  const [loadingServices, setLoadingServices] = useState(true);
 
+  // ── Cargar servicios ──
+  async function loadServices() {
+    setLoadingServices(true);
+    const { data } = await supabase.from("services").select("*").order("name");
+    if (data) setServices(data);
+    setLoadingServices(false);
+  }
+
+  // ── Agregar servicio ──
+  async function addService() {
+    if (!newServiceName || !newServicePrice) return;
+    const { error } = await supabase.from("services").insert({
+      name: newServiceName,
+      description: newServiceDesc || "",
+      price: parseInt(newServicePrice),
+      duration: parseInt(newServiceDuration) || 60,
+      active: true,
+    });
+    if (error) console.error(error);
+    else {
+      setNewServiceName("");
+      setNewServicePrice("");
+      setNewServiceDesc("");
+      setNewServiceDuration("60");
+      loadServices();
+    }
+  }
+
+  // ── Toggle activo ──
+  async function toggleService(id: number, active: boolean) {
+    const { error } = await supabase.from("services").update({ active }).eq("id", id);
+    if (error) console.error(error);
+    else loadServices();
+  }
+
+  // ── Cargar turnos ──
   const loadAppointments = useCallback(async () => {
     const { data } = await supabase.from("appointments").select("*").order("date").order("time");
     if (data) {
@@ -96,8 +130,9 @@ export default function PanelPage() {
     }
   }, []);
 
-  useEffect(() => { if (authenticated) loadAppointments(); }, [authenticated, loadAppointments]);
+  useEffect(() => { if (authenticated) { loadAppointments(); loadServices(); } }, [authenticated, loadAppointments]);
 
+  // ── Billing ──
   useEffect(() => {
     if (!authenticated) return;
     const generateBillingData = () => {
@@ -202,12 +237,6 @@ export default function PanelPage() {
     setEnabledSlots((prev) => prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot].sort());
   }
 
-  function addService() {
-    if (!newServiceName || !newServicePrice) return;
-    setServices((prev) => [...prev, { name: newServiceName, price: parseInt(newServicePrice), desc: newServiceDesc, active: true }]);
-    setNewServiceName(""); setNewServicePrice(""); setNewServiceDesc("");
-  }
-
   const maxRev = topServices[0]?.revenue || 1;
 
   if (!authenticated) {
@@ -268,9 +297,9 @@ export default function PanelPage() {
       </div>
 
       <div style={dashboardStyles.tabsRow}>
-        {(["turnos", "servicios", "horarios", "facturacion"] as const).map((tab) => (
+        {(["turnos", "servicios", "horarios", "facturacion", "marketing"] as const).map((tab) => (
           <button key={tab} style={{ ...dashboardStyles.tab, ...(activeTab === tab ? dashboardStyles.tabActive : {}) }} onClick={() => setActiveTab(tab)}>
-            {tab === "turnos" ? "📆 Turnos" : tab === "servicios" ? "💅 Servicios" : tab === "horarios" ? "⏰ Horarios" : "💰 Facturación"}
+            {tab === "turnos" ? "📆 Turnos" : tab === "servicios" ? "💅 Servicios" : tab === "horarios" ? "⏰ Horarios" : tab === "facturacion" ? "💰 Facturación" : "📢 Marketing"}
           </button>
         ))}
       </div>
@@ -426,29 +455,34 @@ export default function PanelPage() {
         {activeTab === "servicios" && (
           <div className="fadeIn">
             <h3 style={dashboardStyles.secTitle}>Servicios del salón</h3>
-            <div style={dashboardStyles.svcList}>
-              {services.map((sv, i) => (
-                <div key={i} style={{ ...dashboardStyles.svcCard, ...(!sv.active ? dashboardStyles.svcOff : {}) }}>
-                  <div>
-                    <p style={dashboardStyles.svcName}>{sv.name}</p>
-                    <p style={dashboardStyles.svcDesc}>{sv.desc}</p>
-                    <p style={dashboardStyles.svcPrice}>${sv.price.toLocaleString("es-AR")}</p>
+            {loadingServices ? (
+              <p style={{ color: "#a0738c" }}>Cargando servicios...</p>
+            ) : (
+              <div style={dashboardStyles.svcList}>
+                {services.map((sv) => (
+                  <div key={sv.id} style={{ ...dashboardStyles.svcCard, ...(!sv.active ? dashboardStyles.svcOff : {}) }}>
+                    <div>
+                      <p style={dashboardStyles.svcName}>{sv.name}</p>
+                      <p style={dashboardStyles.svcDesc}>{sv.description || "Sin descripción"}</p>
+                      <p style={dashboardStyles.svcPrice}>${sv.price.toLocaleString("es-AR")}</p>
+                    </div>
+                    <button
+                      style={{ ...dashboardStyles.toggleBtn, ...(sv.active ? dashboardStyles.toggleOn : dashboardStyles.toggleOff) }}
+                      onClick={() => toggleService(sv.id, !sv.active)}
+                    >
+                      {sv.active ? "● Activo" : "○ Oculto"}
+                    </button>
                   </div>
-                  <button
-                    style={{ ...dashboardStyles.toggleBtn, ...(sv.active ? dashboardStyles.toggleOn : dashboardStyles.toggleOff) }}
-                    onClick={() => setServices((prev) => prev.map((x, idx) => idx === i ? { ...x, active: !x.active } : x))}
-                  >
-                    {sv.active ? "● Activo" : "○ Oculto"}
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <h3 style={{ ...dashboardStyles.secTitle, marginTop: 28 }}>Agregar servicio</h3>
             <div style={dashboardStyles.addForm}>
               <input style={dashboardStyles.input} placeholder="Nombre del servicio" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
               <input style={dashboardStyles.input} placeholder="Descripción (ej: 60 min con cera caliente)" value={newServiceDesc} onChange={(e) => setNewServiceDesc(e.target.value)} />
               <input style={dashboardStyles.input} placeholder="Precio (ej: 10000)" inputMode="numeric" value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value.replace(/\D/g, ""))} />
+              <input style={dashboardStyles.input} placeholder="Duración en minutos (ej: 60)" inputMode="numeric" value={newServiceDuration} onChange={(e) => setNewServiceDuration(e.target.value)} />
               <button style={dashboardStyles.btnAdd} onClick={addService}>+ Agregar servicio</button>
             </div>
           </div>
@@ -549,6 +583,57 @@ export default function PanelPage() {
                 <p style={dashboardStyles.emptyTxt}>No hay turnos completados en este período</p>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === "marketing" && (
+          <div className="fadeIn">
+            <h3 style={dashboardStyles.secTitle}>📢 Material de Promoción</h3>
+            <p style={dashboardStyles.secSub}>Usá estos textos para avisar a tus clientas que ahora tienen turnos online.</p>
+
+            <div style={dashboardStyles.marketingCard}>
+              <h4 style={dashboardStyles.marketingTitle}>💬 Para enviar por WhatsApp a tus clientas</h4>
+              <div style={dashboardStyles.copyBox}>
+                <p style={dashboardStyles.copyText}>✨ ¡Novedad! ✨ A partir de ahora podés reservar tu turno online desde este link: [link de reserva]. Elegís servicio, profesional, día y hora en 1 minuto. ¡Empezá a usarlo! 💅</p>
+                <button style={dashboardStyles.copyBtn} onClick={() => navigator.clipboard.writeText("✨ ¡Novedad! ✨ A partir de ahora podés reservar tu turno online desde este link: [link de reserva]. Elegís servicio, profesional, día y hora en 1 minuto. ¡Empezá a usarlo! 💅")}>📋 Copiar</button>
+              </div>
+            </div>
+
+            <div style={dashboardStyles.marketingCard}>
+              <h4 style={dashboardStyles.marketingTitle}>📱 Para Instagram (post o historia)</h4>
+              <div style={dashboardStyles.copyBox}>
+                <p style={dashboardStyles.copyText}>🌸 ¡Nos digitalizamos! 🌸 Ahora podés sacar tu turno SOLA desde nuestro nuevo sistema online. Reservá en 4 pasos, elegí profesional, día y hora, y listo. Además, el sistema te va a recordar 24hs antes para que no te olvides. ¿Empezamos? Link en bio 🔗</p>
+                <button style={dashboardStyles.copyBtn} onClick={() => navigator.clipboard.writeText("🌸 ¡Nos digitalizamos! 🌸 Ahora podés sacar tu turno SOLA desde nuestro nuevo sistema online. Reservá en 4 pasos, elegí profesional, día y hora, y listo. Además, el sistema te va a recordar 24hs antes para que no te olvides. ¿Empezamos? Link en bio 🔗")}>📋 Copiar</button>
+              </div>
+            </div>
+
+            <div style={dashboardStyles.marketingCard}>
+              <h4 style={dashboardStyles.marketingTitle}>💰 Para explicar la seña</h4>
+              <div style={dashboardStyles.copyBox}>
+                <p style={dashboardStyles.copyText}>🔔 Para asegurar tu turno, te pedimos una seña de $5.000 (se descuenta del servicio). La seña no es reembolsable, pero podés reprogramar avisando con 24hs de anticipación. Así nos aseguramos de que nadie se quede sin su horario preferido 💕</p>
+                <button style={dashboardStyles.copyBtn} onClick={() => navigator.clipboard.writeText("🔔 Para asegurar tu turno, te pedimos una seña de $5.000 (se descuenta del servicio). La seña no es reembolsable, pero podés reprogramar avisando con 24hs de anticipación. Así nos aseguramos de que nadie se quede sin su horario preferido 💕")}>📋 Copiar</button>
+              </div>
+            </div>
+
+            <div style={dashboardStyles.marketingCard}>
+              <h4 style={dashboardStyles.marketingTitle}>⏰ Recordatorio automático</h4>
+              <div style={dashboardStyles.copyBox}>
+                <p style={dashboardStyles.copyText}>📲 ¿Sabías que nuestro sistema te envía un recordatorio 24 horas antes de tu turno? Así no se te pasa ninguna cita. ¡Tranquilidad para vos y para nosotras!</p>
+                <button style={dashboardStyles.copyBtn} onClick={() => navigator.clipboard.writeText("📲 ¿Sabías que nuestro sistema te envía un recordatorio 24 horas antes de tu turno? Así no se te pasa ninguna cita. ¡Tranquilidad para vos y para nosotras!")}>📋 Copiar</button>
+              </div>
+            </div>
+
+            <div style={dashboardStyles.marketingCard}>
+              <h4 style={dashboardStyles.marketingTitle}>📆 Organización</h4>
+              <div style={dashboardStyles.copyBox}>
+                <p style={dashboardStyles.copyText}>📅 Ahora los turnos se ven en tiempo real. Si ves un horario libre, podés reservarlo al instante. Sin esperar respuesta, sin llamar, sin mensajes. ¡Directo!</p>
+                <button style={dashboardStyles.copyBtn} onClick={() => navigator.clipboard.writeText("📅 Ahora los turnos se ven en tiempo real. Si ves un horario libre, podés reservarlo al instante. Sin esperar respuesta, sin llamar, sin mensajes. ¡Directo!")}>📋 Copiar</button>
+              </div>
+            </div>
+
+            <div style={dashboardStyles.marketingNote}>
+              <p>💡 <strong>Tip:</strong> Guardá el link de reservas en tu WhatsApp destacado o en la biografía de Instagram. Así tus clientas lo tienen siempre a mano.</p>
+            </div>
           </div>
         )}
       </main>
@@ -712,4 +797,10 @@ const dashboardStyles: Record<string, React.CSSProperties> = {
   billingItem: { display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13 },
   billingItemName: { color: "#a0738c" },
   billingItemPrice: { fontWeight: 600, color: "#2d1b2e" },
+  marketingCard: { background: "rgba(255,255,255,0.9)", borderRadius: 20, padding: "16px", marginBottom: 16, border: "1px solid rgba(255,110,180,0.2)" },
+  marketingTitle: { fontSize: 15, fontWeight: 700, marginBottom: 12, color: "#e91e63" },
+  copyBox: { background: "#f9f0f5", borderRadius: 12, padding: "12px", marginBottom: 8 },
+  copyText: { fontSize: 13, color: "#2d1b2e", marginBottom: 12, lineHeight: 1.5 },
+  copyBtn: { background: "#e91e63", border: "none", borderRadius: 8, padding: "6px 12px", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" },
+  marketingNote: { background: "rgba(255,240,247,0.8)", borderRadius: 16, padding: "12px", marginTop: 16, textAlign: "center", fontSize: 12, color: "#a0738c" },
 };

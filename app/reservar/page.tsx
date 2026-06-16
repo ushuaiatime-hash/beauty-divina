@@ -8,12 +8,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const SERVICES = [
-  { id: 1, name: "Pedicuria", price: 8000, duration: 60, icon: "💅🏻", desc: "Tratamiento completo de pies" },
-  { id: 2, name: "Cosmetologia", price: 9500, duration: 75, icon: "✨", desc: "Cuidado facial profesional" },
-  { id: 3, name: "Depilación Definitiva", price: 12000, duration: 90, icon: "🌸", desc: "Depilación láser" },
-];
-
 const PROFESSIONALS = [
   { id: 1, name: "Milagros Dominguez", role: "Uñas & Pedicura", avatar: "M", services: [1, 2, 3], color: "#ff6eb4" },
 ];
@@ -62,8 +56,10 @@ const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Jul
 export default function ReservarPage() {
   const [mostrarPoliticas, setMostrarPoliticas] = useState(true);
   const [step, setStep] = useState(1);
-  const [selectedService, setSelectedService] = useState<typeof SERVICES[0] | null>(null);
-  const [selectedProfessional, setSelectedProfessional] = useState<typeof PROFESSIONALS[0] | null>(null);
+  const [services, setServices] = useState<any[]>([]);
+  const [loadingServices, setLoadingServices] = useState(true);
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedProfessional, setSelectedProfessional] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
@@ -73,6 +69,22 @@ export default function ReservarPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [calendarDates, setCalendarDates] = useState<Date[]>([]);
+
+  // ── Cargar servicios desde Supabase ──
+  useEffect(() => {
+    loadServices();
+  }, []);
+
+  async function loadServices() {
+    setLoadingServices(true);
+    const { data } = await supabase
+      .from("services")
+      .select("*")
+      .eq("active", true)
+      .order("name");
+    if (data) setServices(data);
+    setLoadingServices(false);
+  }
 
   useEffect(() => {
     const today = getArgentinaDate();
@@ -120,7 +132,7 @@ export default function ReservarPage() {
       professional_name: selectedProfessional.name,
       date: selectedDate,
       time: selectedTime,
-      duration_minutes: selectedService.duration,
+      duration_minutes: selectedService.duration || 60,
       price: selectedService.price,
       status: "pending_seña",
     }]);
@@ -245,20 +257,24 @@ export default function ReservarPage() {
           <div style={styles.stepWrap} className="fadeIn">
             <h2 style={styles.stepTitle}>✨ ¿Qué servicio querés? ✨</h2>
             <p style={styles.stepSub}>Elegí el tratamiento que más te guste</p>
-            <div style={styles.serviceGrid}>
-              {SERVICES.map((s) => (
-                <div key={s.id} style={{ ...styles.serviceCard, ...(selectedService?.id === s.id ? styles.serviceCardActive : {}) }} className="card-hover" onClick={() => { setSelectedService(s); setStep(2); }}>
-                  <span style={styles.serviceIcon}>{s.icon}</span>
-                  <h3 style={styles.serviceName}>{s.name}</h3>
-                  <p style={styles.serviceDesc}>{s.desc}</p>
-                  <div style={styles.serviceFooter}>
-                    <span style={styles.servicePrice}>${s.price.toLocaleString("es-AR")}</span>
-                    <span style={styles.serviceDuration}>{s.duration} min</span>
+            {loadingServices ? (
+              <p style={{ color: "#a0738c" }}>Cargando servicios...</p>
+            ) : (
+              <div style={styles.serviceGrid}>
+                {services.map((s) => (
+                  <div key={s.id} style={{ ...styles.serviceCard, ...(selectedService?.id === s.id ? styles.serviceCardActive : {}) }} className="card-hover" onClick={() => { setSelectedService(s); setStep(2); }}>
+                    <span style={styles.serviceIcon}>💅</span>
+                    <h3 style={styles.serviceName}>{s.name}</h3>
+                    <p style={styles.serviceDesc}>{s.description || ""}</p>
+                    <div style={styles.serviceFooter}>
+                      <span style={styles.servicePrice}>${s.price.toLocaleString("es-AR")}</span>
+                      <span style={styles.serviceDuration}>{s.duration || 60} min</span>
+                    </div>
+                    {selectedService?.id === s.id && <div style={styles.selectedBadge}>✓ Seleccionado</div>}
                   </div>
-                  {selectedService?.id === s.id && <div style={styles.selectedBadge}>✓ Seleccionado</div>}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
