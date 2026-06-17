@@ -38,7 +38,15 @@ type Appointment = {
   service_name: string; professional_name: string;
   date: string; time: string; duration_minutes: number; price: number; status: string;
 };
-type Service = { id: number; name: string; description: string; price: number; duration: number; active: boolean; };
+type Service = { 
+  id: number; 
+  name: string; 
+  description: string; 
+  price: number; 
+  duration: number; 
+  active: boolean;
+  professional: string;
+};
 type BlockedSlot = { date: string; time: string };
 
 export default function PanelPage() {
@@ -59,6 +67,7 @@ export default function PanelPage() {
   const [newServicePrice, setNewServicePrice] = useState("");
   const [newServiceDesc, setNewServiceDesc] = useState("");
   const [newServiceDuration, setNewServiceDuration] = useState("60");
+  const [newServiceProfessional, setNewServiceProfessional] = useState("");
   const [moveModal, setMoveModal] = useState<{ open: boolean; apt: Appointment | null }>({ open: false, apt: null });
   const [moveDate, setMoveDate] = useState("");
   const [moveTime, setMoveTime] = useState("");
@@ -70,6 +79,7 @@ export default function PanelPage() {
   const [billingPeriod, setBillingPeriod] = useState<"day"|"week"|"month">("month");
   const [billingData, setBillingData] = useState<{ date: string; total: number; appointments: Appointment[] }[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
+  const [editingServiceId, setEditingServiceId] = useState<number | null>(null);
 
   // ── Cargar servicios ──
   async function loadServices() {
@@ -87,6 +97,7 @@ export default function PanelPage() {
       description: newServiceDesc || "",
       price: parseInt(newServicePrice),
       duration: parseInt(newServiceDuration) || 60,
+      professional: newServiceProfessional || "Milagros ✨",
       active: true,
     });
     if (error) console.error(error);
@@ -95,6 +106,27 @@ export default function PanelPage() {
       setNewServicePrice("");
       setNewServiceDesc("");
       setNewServiceDuration("60");
+      setNewServiceProfessional("");
+      loadServices();
+    }
+  }
+
+  // ── Actualizar servicio ──
+  async function updateService(service: Service) {
+    const { error } = await supabase
+      .from("services")
+      .update({
+        name: service.name,
+        description: service.description,
+        price: service.price,
+        duration: service.duration,
+        professional: service.professional,
+        active: service.active,
+      })
+      .eq("id", service.id);
+    if (error) console.error(error);
+    else {
+      setEditingServiceId(null);
       loadServices();
     }
   }
@@ -463,8 +495,49 @@ export default function PanelPage() {
                   <div key={sv.id} style={{ ...dashboardStyles.svcCard, ...(!sv.active ? dashboardStyles.svcOff : {}) }}>
                     <div>
                       <p style={dashboardStyles.svcName}>{sv.name}</p>
-                      <p style={dashboardStyles.svcDesc}>{sv.description || "Sin descripción"}</p>
-                      <p style={dashboardStyles.svcPrice}>${sv.price.toLocaleString("es-AR")}</p>
+                      {editingServiceId === sv.id ? (
+                        <>
+                          <input
+                            type="text"
+                            value={sv.description || ""}
+                            onChange={(e) => {
+                              const updated = services.map(s => s.id === sv.id ? { ...s, description: e.target.value } : s);
+                              setServices(updated);
+                            }}
+                            style={dashboardStyles.input}
+                            placeholder="Descripción"
+                          />
+                          <input
+                            type="number"
+                            value={sv.price}
+                            onChange={(e) => {
+                              const updated = services.map(s => s.id === sv.id ? { ...s, price: parseInt(e.target.value) } : s);
+                              setServices(updated);
+                            }}
+                            style={dashboardStyles.input}
+                            placeholder="Precio"
+                          />
+                          <input
+                            type="text"
+                            value={sv.professional || ""}
+                            onChange={(e) => {
+                              const updated = services.map(s => s.id === sv.id ? { ...s, professional: e.target.value } : s);
+                              setServices(updated);
+                            }}
+                            style={dashboardStyles.input}
+                            placeholder="Profesional"
+                          />
+                          <button onClick={() => updateService(sv)} style={dashboardStyles.btnAdd}>Guardar</button>
+                          <button onClick={() => setEditingServiceId(null)} style={dashboardStyles.btnModalCancel}>Cancelar</button>
+                        </>
+                      ) : (
+                        <>
+                          <p style={dashboardStyles.svcDesc}>{sv.description || "Sin descripción"}</p>
+                          <p style={dashboardStyles.svcPrice}>${sv.price.toLocaleString("es-AR")}</p>
+                          <p style={{ fontSize: 12, color: "#a0738c" }}>👩‍💼 {sv.professional || "Sin profesional"}</p>
+                          <button onClick={() => setEditingServiceId(sv.id)} style={dashboardStyles.btnMove}>✏️ Editar</button>
+                        </>
+                      )}
                     </div>
                     <button
                       style={{ ...dashboardStyles.toggleBtn, ...(sv.active ? dashboardStyles.toggleOn : dashboardStyles.toggleOff) }}
@@ -480,9 +553,10 @@ export default function PanelPage() {
             <h3 style={{ ...dashboardStyles.secTitle, marginTop: 28 }}>Agregar servicio</h3>
             <div style={dashboardStyles.addForm}>
               <input style={dashboardStyles.input} placeholder="Nombre del servicio" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
-              <input style={dashboardStyles.input} placeholder="Descripción (ej: 60 min con cera caliente)" value={newServiceDesc} onChange={(e) => setNewServiceDesc(e.target.value)} />
+              <input style={dashboardStyles.input} placeholder="Descripción" value={newServiceDesc} onChange={(e) => setNewServiceDesc(e.target.value)} />
               <input style={dashboardStyles.input} placeholder="Precio (ej: 10000)" inputMode="numeric" value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value.replace(/\D/g, ""))} />
-              <input style={dashboardStyles.input} placeholder="Duración en minutos (ej: 60)" inputMode="numeric" value={newServiceDuration} onChange={(e) => setNewServiceDuration(e.target.value)} />
+              <input style={dashboardStyles.input} placeholder="Duración (min)" inputMode="numeric" value={newServiceDuration} onChange={(e) => setNewServiceDuration(e.target.value)} />
+              <input style={dashboardStyles.input} placeholder="Profesional (ej: Milagros ✨)" value={newServiceProfessional} onChange={(e) => setNewServiceProfessional(e.target.value)} />
               <button style={dashboardStyles.btnAdd} onClick={addService}>+ Agregar servicio</button>
             </div>
           </div>
