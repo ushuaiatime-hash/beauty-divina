@@ -8,71 +8,39 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Servicios actualizados con profesional fijo
-const SERVICES = [
+// Profesionales y sus servicios
+const PROFESSIONALS = [
   {
-    id: 1,
-    name: "Esmaltado Semipermanente",
-    professional: "Milagros ✨",
-    duration: 60,
-    price: 30000,
-    icon: "💅",
-    desc: "Esmaltado de larga duración realizado sobre el largo natural de la uña, ideal para uñas fuertes y resistentes. Incluye diseño a elección.",
+    id: "milagros",
+    name: "Milagros ✨",
+    services: [
+      { id: 1, name: "Esmaltado Semipermanente", price: 30000, duration: 60, desc: "Esmaltado de larga duración..." },
+      { id: 2, name: "Capping en Polygel", price: 35000, duration: 120, desc: "Capa fina de polygel..." },
+      { id: 3, name: "Esculpidas en Polygel", price: 40000, duration: 150, desc: "Alargamiento de uñas..." },
+    ]
   },
   {
-    id: 2,
-    name: "Capping en Polygel",
-    professional: "Milagros ✨",
-    duration: 120,
-    price: 35000,
-    icon: "💅",
-    desc: "Capa fina de polygel sobre la uña natural que brinda mayor resistencia y protección, ideal para uñas débiles o quebradizas. Incluye diseño a elección.",
+    id: "micaela",
+    name: "Micaela ✨",
+    services: [
+      { id: 4, name: "Cosmetología / Cosmiatría", price: 20000, duration: 90, desc: "Limpieza facial profunda, masajes..." },
+    ]
   },
   {
-    id: 3,
-    name: "Esculpidas en Polygel",
-    professional: "Milagros ✨",
-    duration: 150,
-    price: 40000,
-    icon: "💅",
-    desc: "Alargamiento de uñas en polygel que permite lograr el largo y la forma deseada (almendra, cuadrada, coffin o stiletto). Incluye diseño a elección. Precio válido hasta largo 2. Consultar por otros largos.",
+    id: "patricia",
+    name: "Patricia ✨",
+    services: [
+      { id: 5, name: "Pedicuria y Podología", price: 10000, duration: 30, desc: "Corte y tratamiento de uñas..." },
+    ]
   },
   {
-    id: 4,
-    name: "Pedicuria y Podología",
-    professional: "Patricia ✨",
-    duration: 30,
-    price: 10000,
-    icon: "🦶",
-    desc: "Corte y tratamiento de uñas, limpieza de talones, extracción de uñas encarnadas y cuidado integral de la salud de los pies.",
-  },
-  {
-    id: 5,
-    name: "Depilación Definitiva (Cuerpo Completo)",
-    professional: "Patricia y Rosa ✨",
-    duration: 30,
-    price: 28000,
-    icon: "✨",
-    desc: "Eliminación progresiva del vello con tecnología láser Soprano Ice, segura y prácticamente indolora.",
-  },
-  {
-    id: 6,
-    name: "Depilación Definitiva (Zonas a elección)",
-    professional: "Patricia y Rosa ✨",
-    duration: 30,
-    price: 7000,
-    icon: "✨",
-    desc: "Eliminación progresiva del vello con tecnología láser Soprano Ice, segura y prácticamente indolora. Elegí las zonas que desees.",
-  },
-  {
-    id: 7,
-    name: "Cosmetología / Cosmiatría",
-    professional: "Micaela ✨",
-    duration: 90,
-    price: 20000,
-    icon: "✨",
-    desc: "Limpieza facial profunda, masajes faciales, dermaplaning, tratamiento corporal, exfoliación corporal, peeling químico. Tratamientos para acné, rosácea, manchas y anti-age.",
-  },
+    id: "patricia_rosa",
+    name: "Patricia y Rosa ✨",
+    services: [
+      { id: 6, name: "Depilación Definitiva (Cuerpo Completo)", price: 28000, duration: 30, desc: "Eliminación progresiva del vello..." },
+      { id: 7, name: "Depilación Definitiva (Zonas a elección)", price: 7000, duration: 30, desc: "Elegí las zonas que desees." },
+    ]
+  }
 ];
 
 const TIME_SLOTS = [
@@ -119,6 +87,7 @@ const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Jul
 export default function ReservarPage() {
   const [mostrarPoliticas, setMostrarPoliticas] = useState(true);
   const [step, setStep] = useState(1);
+  const [selectedProfessional, setSelectedProfessional] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
@@ -143,16 +112,16 @@ export default function ReservarPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedDate && selectedService) fetchBookedSlots();
-  }, [selectedDate, selectedService]);
+    if (selectedDate && selectedProfessional) fetchBookedSlots();
+  }, [selectedDate, selectedProfessional]);
 
   async function fetchBookedSlots() {
-    if (!selectedService) return;
+    if (!selectedProfessional) return;
     const { data } = await supabase
       .from("appointments")
       .select("time")
       .eq("date", selectedDate)
-      .eq("professional_name", selectedService.professional)
+      .eq("professional_name", selectedProfessional.name)
       .neq("status", "cancelled");
     if (data) setBookedSlots(data.map((d: any) => d.time));
   }
@@ -170,7 +139,7 @@ export default function ReservarPage() {
       client_name: clientName,
       client_phone: fullPhone,
       service_name: selectedService.name,
-      professional_name: selectedService.professional,
+      professional_name: selectedProfessional.name,
       date: selectedDate,
       time: selectedTime,
       duration_minutes: selectedService.duration,
@@ -190,7 +159,7 @@ export default function ReservarPage() {
       `👤 Cliente: ${clientName}\n` +
       `📱 WhatsApp: +${fullPhone}\n` +
       `💅 Servicio: ${selectedService.name}\n` +
-      `👩🏻‍💼 Profesional: ${selectedService.professional}\n` +
+      `👩🏻‍💼 Profesional: ${selectedProfessional.name}\n` +
       `📆 Fecha: ${day}/${month}/${year}\n` +
       `⏰ Hora: ${selectedTime}\n` +
       `💰 Precio total: $${selectedService.price.toLocaleString("es-AR")}\n` +
@@ -252,7 +221,7 @@ export default function ReservarPage() {
           <a href={`https://wa.me/${OWNER.whatsapp}?text=Hola! Ya realicé la transferencia de la seña para mi turno de ${selectedService?.name} el ${formatDisplayDate(selectedDate)} a las ${selectedTime}. Mi nombre es ${clientName}.`} target="_blank" style={styles.whatsappBtn}>
             💬 Enviar comprobante por WhatsApp
           </a>
-          <button style={styles.primaryBtn} onClick={() => { setStep(1); setSuccess(false); setSelectedService(null); setSelectedTime(""); setClientName(""); setClientPhone(""); }}>
+          <button style={styles.primaryBtn} onClick={() => { setStep(1); setSuccess(false); setSelectedService(null); setSelectedProfessional(null); setSelectedTime(""); setClientName(""); setClientPhone(""); }}>
             Hacer otra reserva
           </button>
         </div>
@@ -281,15 +250,15 @@ export default function ReservarPage() {
       </header>
 
       <div style={styles.progressWrap}>
-        {[1,2,3,4].map((s) => (
+        {[1,2,3,4,5].map((s) => (
           <div key={s} style={styles.progressItem}>
             <div style={{ ...styles.progressCircle, ...(step >= s ? styles.progressActive : {}) }}>
               {step > s ? "✓" : s}
             </div>
             <span style={{ ...styles.progressLabel, ...(step >= s ? { color: "#e91e63" } : { color: "#a0738c" }) }}>
-              {s === 1 ? "Servicio" : s === 2 ? "Fecha" : s === 3 ? "Horario" : "Datos"}
+              {s === 1 ? "Profesional" : s === 2 ? "Servicio" : s === 3 ? "Fecha" : s === 4 ? "Horario" : "Datos"}
             </span>
-            {s < 4 && <div style={{ ...styles.progressLine, ...(step > s ? styles.progressLineActive : {}) }} />}
+            {s < 5 && <div style={{ ...styles.progressLine, ...(step > s ? styles.progressLineActive : {}) }} />}
           </div>
         ))}
       </div>
@@ -297,20 +266,15 @@ export default function ReservarPage() {
       <main style={{ ...styles.main, maxWidth: 500 }}>
         {step === 1 && (
           <div style={styles.stepWrap} className="fadeIn">
-            <h2 style={styles.stepTitle}>✨ ¿Qué servicio querés? ✨</h2>
-            <p style={styles.stepSub}>Elegí el tratamiento que más te guste</p>
-            <div style={styles.serviceGrid}>
-              {SERVICES.map((s) => (
-                <div key={s.id} style={{ ...styles.serviceCard, ...(selectedService?.id === s.id ? styles.serviceCardActive : {}) }} className="card-hover" onClick={() => { setSelectedService(s); setStep(2); }}>
-                  <span style={styles.serviceIcon}>{s.icon}</span>
-                  <h3 style={styles.serviceName}>{s.name}</h3>
-                  <p style={styles.serviceDesc}>{s.desc}</p>
-                  <div style={styles.serviceFooter}>
-                    <span style={styles.servicePrice}>${s.price.toLocaleString("es-AR")}</span>
-                    <span style={styles.serviceDuration}>{s.duration} min</span>
-                  </div>
-                  <p style={{ fontSize: 11, color: "#a0738c", marginTop: 8 }}>👩‍💼 {s.professional}</p>
-                  {selectedService?.id === s.id && <div style={styles.selectedBadge}>✓ Seleccionado</div>}
+            <h2 style={styles.stepTitle}>✨ ¿Con quién querés atenderte? ✨</h2>
+            <p style={styles.stepSub}>Elegí tu profesional de confianza</p>
+            <div style={styles.profGrid}>
+              {PROFESSIONALS.map((p) => (
+                <div key={p.id} style={{ ...styles.profCard, ...(selectedProfessional?.id === p.id ? styles.profCardActive : {}) }} className="card-hover" onClick={() => { setSelectedProfessional(p); setStep(2); }}>
+                  <div style={{ ...styles.profAvatar, background: "#ff6eb4" }}>👩‍💼</div>
+                  <h3 style={styles.profName}>{p.name}</h3>
+                  <p style={styles.profRole}>{p.services.length} servicios</p>
+                  {selectedProfessional?.id === p.id && <div style={styles.selectedBadge}>✓ Seleccionada</div>}
                 </div>
               ))}
             </div>
@@ -320,6 +284,28 @@ export default function ReservarPage() {
         {step === 2 && (
           <div style={styles.stepWrap} className="fadeIn">
             <button style={styles.backBtn} onClick={() => setStep(1)}>← Volver</button>
+            <h2 style={styles.stepTitle}>✨ ¿Qué servicio querés? ✨</h2>
+            <p style={styles.stepSub}>Elegí el tratamiento que más te guste de {selectedProfessional?.name}</p>
+            <div style={styles.serviceGrid}>
+              {selectedProfessional?.services.map((s: any) => (
+                <div key={s.id} style={{ ...styles.serviceCard, ...(selectedService?.id === s.id ? styles.serviceCardActive : {}) }} className="card-hover" onClick={() => { setSelectedService(s); setStep(3); }}>
+                  <span style={styles.serviceIcon}>💅</span>
+                  <h3 style={styles.serviceName}>{s.name}</h3>
+                  <p style={styles.serviceDesc}>{s.desc}</p>
+                  <div style={styles.serviceFooter}>
+                    <span style={styles.servicePrice}>${s.price.toLocaleString("es-AR")}</span>
+                    <span style={styles.serviceDuration}>{s.duration} min</span>
+                  </div>
+                  {selectedService?.id === s.id && <div style={styles.selectedBadge}>✓ Seleccionado</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div style={styles.stepWrap} className="fadeIn">
+            <button style={styles.backBtn} onClick={() => setStep(2)}>← Volver</button>
             <h2 style={styles.stepTitle}>✨ ¿Cuándo te viene bien? ✨</h2>
             <p style={styles.stepSub}>Seleccioná fecha disponible</p>
             <div style={styles.calendarScroll}>
@@ -328,7 +314,7 @@ export default function ReservarPage() {
                 const isSelected = selectedDate === dateStr;
                 const isToday = formatDate(getArgentinaDate()) === dateStr;
                 return (
-                  <div key={dateStr} style={{ ...styles.calDay, ...(isSelected ? styles.calDayActive : {}), ...(isToday ? styles.calDayToday : {}) }} className="card-hover" onClick={() => { setSelectedDate(dateStr); setStep(3); }}>
+                  <div key={dateStr} style={{ ...styles.calDay, ...(isSelected ? styles.calDayActive : {}), ...(isToday ? styles.calDayToday : {}) }} className="card-hover" onClick={() => { setSelectedDate(dateStr); setStep(4); }}>
                     <span style={styles.calDayName}>{DAY_NAMES[d.getDay()]}</span>
                     <span style={styles.calDayNum}>{d.getDate()}</span>
                     <span style={styles.calDayMonth}>{MONTH_NAMES[d.getMonth()].slice(0, 3)}</span>
@@ -339,9 +325,9 @@ export default function ReservarPage() {
           </div>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <div style={styles.stepWrap} className="fadeIn">
-            <button style={styles.backBtn} onClick={() => setStep(2)}>← Volver</button>
+            <button style={styles.backBtn} onClick={() => setStep(3)}>← Volver</button>
             <h2 style={styles.stepTitle}>✨ Horarios disponibles ✨</h2>
             <p style={styles.stepSub}>Elegí tu horario preferido</p>
             <div style={styles.slotGrid}>
@@ -357,22 +343,22 @@ export default function ReservarPage() {
               })}
             </div>
             {selectedTime && (
-              <button style={{ ...styles.primaryBtn }} onClick={() => setStep(4)}>
+              <button style={{ ...styles.primaryBtn }} onClick={() => setStep(5)}>
                 Continuar →
               </button>
             )}
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div style={styles.stepWrap} className="fadeIn">
-            <button style={styles.backBtn} onClick={() => setStep(3)}>← Volver</button>
+            <button style={styles.backBtn} onClick={() => setStep(4)}>← Volver</button>
             <h2 style={styles.stepTitle}>✨ Tus datos ✨</h2>
             <p style={styles.stepSub}>Último paso para reservar tu turno</p>
             <div style={styles.summaryCard}>
               <h4 style={styles.summaryTitle}>📋 Resumen de tu turno</h4>
+              <div style={styles.summaryRow}><span>👩‍💼 Profesional</span><strong>{selectedProfessional?.name}</strong></div>
               <div style={styles.summaryRow}><span>💅🏻 Servicio</span><strong>{selectedService?.name}</strong></div>
-              <div style={styles.summaryRow}><span>👩‍💼 Profesional</span><strong>{selectedService?.professional}</strong></div>
               <div style={styles.summaryRow}><span>📆 Fecha</span><strong>{formatDisplayDate(selectedDate)}</strong></div>
               <div style={styles.summaryRow}><span>⏰ Hora</span><strong>{selectedTime}</strong></div>
               <div style={styles.summaryRow}><span>💰 Precio total</span><strong style={{ color: "#e91e63" }}>${selectedService?.price.toLocaleString("es-AR")}</strong></div>
@@ -469,6 +455,12 @@ const styles: Record<string, React.CSSProperties> = {
   servicePrice: { fontWeight: 700, fontSize: 18, color: "#e91e63", fontFamily: "'Plus Jakarta Sans', sans-serif" },
   serviceDuration: { fontSize: 12, color: "rgba(45,27,46,0.5)", background: "rgba(255,240,247,0.8)", padding: "3px 10px", borderRadius: 20 },
   selectedBadge: { position: "absolute", top: 12, right: 12, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", color: "#fff", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 },
+  profGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14, marginBottom: 24 },
+  profCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 20, padding: "28px 20px", textAlign: "center", position: "relative", transition: "all 0.25s ease", cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
+  profCardActive: { border: "1.5px solid #ff6eb4", background: "rgba(255,255,255,1)", boxShadow: "0 0 30px rgba(255,110,180,0.2)" },
+  profAvatar: { width: 64, height: 64, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, color: "#fff", margin: "0 auto 14px", fontFamily: "'Plus Jakarta Sans', sans-serif", boxShadow: "0 8px 24px rgba(233,30,99,0.2)" },
+  profName: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 16, fontWeight: 700, margin: "0 0 4px", color: "#2d1b2e" },
+  profRole: { fontSize: 13, color: "rgba(45,27,46,0.5)", margin: 0 },
   calendarScroll: { display: "flex", gap: 10, overflowX: "auto", paddingBottom: 12, marginBottom: 24, paddingTop: 4 },
   calDay: { minWidth: 60, height: 78, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, transition: "all 0.2s", cursor: "pointer", flexShrink: 0, boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
   calDayActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", boxShadow: "0 4px 20px rgba(233,30,99,0.3)" },
