@@ -8,39 +8,85 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Profesionales y sus servicios
+// Profesionales y sus servicios (con especialidad)
 const PROFESSIONALS = [
   {
     id: "milagros",
     name: "Milagros ✨",
+    specialty: "Especialista en Uñas",
     services: [
-      { id: 1, name: "Esmaltado Semipermanente", price: 30000, duration: 60, desc: "Esmaltado de larga duración..." },
-      { id: 2, name: "Capping en Polygel", price: 35000, duration: 120, desc: "Capa fina de polygel..." },
-      { id: 3, name: "Esculpidas en Polygel", price: 40000, duration: 150, desc: "Alargamiento de uñas..." },
-    ]
+      {
+        id: 1,
+        name: "Esmaltado Semipermanente",
+        price: 30000,
+        duration: 60,
+        desc: "Esmaltado de larga duración realizado sobre el largo natural de la uña, ideal para uñas fuertes y resistentes. Incluye diseño a elección.",
+      },
+      {
+        id: 2,
+        name: "Capping en Polygel",
+        price: 35000,
+        duration: 120,
+        desc: "Capa fina de polygel sobre la uña natural que brinda mayor resistencia y protección, ideal para uñas débiles o quebradizas. Incluye diseño a elección.",
+      },
+      {
+        id: 3,
+        name: "Esculpidas en Polygel",
+        price: 40000,
+        duration: 150,
+        desc: "Alargamiento de uñas en polygel que permite lograr el largo y la forma deseada (almendra, cuadrada, coffin o stiletto). Incluye diseño a elección. Precio válido hasta largo 2. Consultar por otros largos.",
+      },
+    ],
   },
   {
     id: "micaela",
     name: "Micaela ✨",
+    specialty: "Cosmiatra",
     services: [
-      { id: 4, name: "Cosmetología / Cosmiatría", price: 20000, duration: 90, desc: "Limpieza facial profunda, masajes..." },
-    ]
+      {
+        id: 4,
+        name: "Cosmetología / Cosmiatría",
+        price: 20000,
+        duration: 90,
+        desc: "Limpieza facial profunda, masajes faciales, dermaplaning, tratamiento corporal, exfoliación corporal, peeling químico. Tratamientos para acné, rosácea, manchas y anti-age.",
+      },
+    ],
   },
   {
     id: "patricia",
     name: "Patricia ✨",
+    specialty: "Podóloga",
     services: [
-      { id: 5, name: "Pedicuria y Podología", price: 10000, duration: 30, desc: "Corte y tratamiento de uñas..." },
-    ]
+      {
+        id: 5,
+        name: "Pedicuria y Podología",
+        price: 10000,
+        duration: 30,
+        desc: "Corte y tratamiento de uñas, limpieza de talones, extracción de uñas encarnadas y cuidado integral de la salud de los pies.",
+      },
+    ],
   },
   {
     id: "patricia_rosa",
     name: "Patricia y Rosa ✨",
+    specialty: "Especialistas en Depilación Definitiva",
     services: [
-      { id: 6, name: "Depilación Definitiva (Cuerpo Completo)", price: 28000, duration: 30, desc: "Eliminación progresiva del vello..." },
-      { id: 7, name: "Depilación Definitiva (Zonas a elección)", price: 7000, duration: 30, desc: "Elegí las zonas que desees." },
-    ]
-  }
+      {
+        id: 6,
+        name: "Depilación Definitiva (Cuerpo Completo)",
+        price: 28000,
+        duration: 30,
+        desc: "Eliminación progresiva del vello con tecnología láser Soprano Ice, segura y prácticamente indolora.",
+      },
+      {
+        id: 7,
+        name: "Depilación Definitiva (Zonas a elección)",
+        price: 7000,
+        duration: 30,
+        desc: "Eliminación progresiva del vello con tecnología láser Soprano Ice, segura y prácticamente indolora. Elegí las zonas que desees.",
+      },
+    ],
+  },
 ];
 
 const TIME_SLOTS = [
@@ -271,9 +317,15 @@ export default function ReservarPage() {
             <div style={styles.profGrid}>
               {PROFESSIONALS.map((p) => (
                 <div key={p.id} style={{ ...styles.profCard, ...(selectedProfessional?.id === p.id ? styles.profCardActive : {}) }} className="card-hover" onClick={() => { setSelectedProfessional(p); setStep(2); }}>
-                  <div style={{ ...styles.profAvatar, background: "#ff6eb4" }}>👩‍💼</div>
-                  <h3 style={styles.profName}>{p.name}</h3>
-                  <p style={styles.profRole}>{p.services.length} servicios</p>
+                  <div style={styles.profAvatar}>
+                    <span style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>
+                      {p.name.split(" ")[0][0]}{p.name.split(" ")[1]?.[0] || ""}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 style={styles.profName}>{p.name}</h3>
+                    <p style={styles.profRole}>{p.specialty}</p>
+                  </div>
                   {selectedProfessional?.id === p.id && <div style={styles.selectedBadge}>✓ Seleccionada</div>}
                 </div>
               ))}
@@ -456,10 +508,10 @@ const styles: Record<string, React.CSSProperties> = {
   serviceDuration: { fontSize: 12, color: "rgba(45,27,46,0.5)", background: "rgba(255,240,247,0.8)", padding: "3px 10px", borderRadius: 20 },
   selectedBadge: { position: "absolute", top: 12, right: 12, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", color: "#fff", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 },
   profGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14, marginBottom: 24 },
-  profCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 20, padding: "28px 20px", textAlign: "center", position: "relative", transition: "all 0.25s ease", cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
+  profCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 20, padding: "28px 20px", textAlign: "left", position: "relative", transition: "all 0.25s ease", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
   profCardActive: { border: "1.5px solid #ff6eb4", background: "rgba(255,255,255,1)", boxShadow: "0 0 30px rgba(255,110,180,0.2)" },
-  profAvatar: { width: 64, height: 64, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, color: "#fff", margin: "0 auto 14px", fontFamily: "'Plus Jakarta Sans', sans-serif", boxShadow: "0 8px 24px rgba(233,30,99,0.2)" },
-  profName: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 16, fontWeight: 700, margin: "0 0 4px", color: "#2d1b2e" },
+  profAvatar: { width: 48, height: 48, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #ff6eb4, #e91e63)", flexShrink: 0, boxShadow: "0 4px 12px rgba(233,30,99,0.3)" },
+  profName: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 16, fontWeight: 700, margin: 0, color: "#2d1b2e" },
   profRole: { fontSize: 13, color: "rgba(45,27,46,0.5)", margin: 0 },
   calendarScroll: { display: "flex", gap: 10, overflowX: "auto", paddingBottom: 12, marginBottom: 24, paddingTop: 4 },
   calDay: { minWidth: 60, height: 78, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, transition: "all 0.2s", cursor: "pointer", flexShrink: 0, boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
