@@ -407,26 +407,62 @@ export default function PanelPage() {
                             <button style={dashboardStyles.btnComplete} onClick={() => completeAppointment(apt)}>
                               ✓ Completar
                             </button>
-                            <button 
-                              onClick={() => {
-                                const [y, m, d] = apt.date.split("-");
-                                const mensaje = encodeURIComponent(
-                                  `🌸 RECORDATORIO - Beauty Divina\n\n` +
-                                  `Hola ${apt.client_name} ✨\n\n` +
-                                  `Te recordamos que tienes un turno en 24 horas:\n\n` +
-                                  `📅 ${d}/${m}/${y}\n` +
-                                  `⏰ ${apt.time}hs\n` +
-                                  `💅🏻 ${apt.service_name}\n` +
-                                  `👩🏻‍💼 ${apt.professional_name}\n` +
-                                  `📍 Cap. O. Cairo 601, Monte Grande\n\n` +
-                                  `Confirmá tu asistencia respondiendo este mensaje 🧚🏻‍♀️✨`
-                                );
-                                window.open(`https://wa.me/${apt.client_phone}?text=${mensaje}`, "_blank");
-                              }}
-                              style={{ background: "#f59e0b", border: "none", borderRadius: 12, color: "#fff", fontSize: 12, fontWeight: 700, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                            >
-                              ⏰ Recordatorio 24hs
-                            </button>
+                            <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                              <select
+                                id={`horas-${apt.id}`}
+                                style={{
+                                  background: "rgba(255,255,255,0.05)",
+                                  border: "1px solid var(--br)",
+                                  borderRadius: 8,
+                                  padding: "6px 8px",
+                                  color: "white",
+                                  fontSize: 11,
+                                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                                  cursor: "pointer",
+                                  minWidth: "60px"
+                                }}
+                              >
+                                <option value="1">1hs</option>
+                                <option value="2">2hs</option>
+                                <option value="3">3hs</option>
+                                <option value="6">6hs</option>
+                                <option value="12">12hs</option>
+                                <option value="24" selected>24hs</option>
+                                <option value="48">48hs</option>
+                              </select>
+                              <button
+                                onClick={() => {
+                                  const horas = parseInt(document.getElementById(`horas-${apt.id}`)?.value || "24");
+                                  const [y, m, d] = apt.date.split("-");
+                                  const mensaje = encodeURIComponent(
+                                    `🌸 RECORDATORIO - Beauty Divina\n\n` +
+                                    `Hola ${apt.client_name} ✨\n\n` +
+                                    `Te recordamos que tienes un turno en ${horas} horas:\n\n` +
+                                    `📅 ${d}/${m}/${y}\n` +
+                                    `⏰ ${apt.time}hs\n` +
+                                    `💅🏻 ${apt.service_name}\n` +
+                                    `👩🏻‍💼 ${apt.professional_name}\n` +
+                                    `📍 Cap. O. Cairo 601, Monte Grande\n\n` +
+                                    `Confirmá tu asistencia respondiendo este mensaje 🧚🏻‍♀️✨`
+                                  );
+                                  window.open(`https://wa.me/${apt.client_phone}?text=${mensaje}`, "_blank");
+                                }}
+                                style={{
+                                  background: "#f59e0b",
+                                  border: "none",
+                                  borderRadius: 12,
+                                  color: "#fff",
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  padding: "9px 14px",
+                                  cursor: "pointer",
+                                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                                  whiteSpace: "nowrap"
+                                }}
+                              >
+                                ⏰ Recordatorio
+                              </button>
+                            </div>
                           </>
                         )}
                         <button style={dashboardStyles.btnMove} onClick={() => { setMoveModal({ open: true, apt }); setMoveDate(apt.date); setMoveTime(apt.time); }}>
