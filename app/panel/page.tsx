@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -8,909 +8,597 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const OWNER_PIN = "1234";
-const ALL_TIME_SLOTS = [
+// ========== PROFESIONALES Y SERVICIOS ==========
+
+const PROFESSIONALS = [
+  {
+    id: "milagros",
+    name: "Milagros ✨",
+    specialty: "Especialista en Uñas",
+    services: [
+      {
+        id: 1,
+        name: "Esmaltado Semipermanente",
+        price: 30000,
+        duration: 60,
+        desc: "Esmaltado de larga duración realizado sobre el largo natural de la uña. Incluye diseño a elección.",
+      },
+      {
+        id: 2,
+        name: "Capping en Polygel",
+        price: 35000,
+        duration: 120,
+        desc: "Capa fina de polygel sobre la uña natural que brinda mayor resistencia y protección. Incluye diseño a elección.",
+      },
+      {
+        id: 3,
+        name: "Esculpidas en Polygel",
+        price: 40000,
+        duration: 150,
+        desc: "Alargamiento de uñas en polygel. Forma deseada (almendra, cuadrada, coffin o stiletto). Incluye diseño. Precio válido hasta largo 2.",
+      },
+    ],
+  },
+  {
+    id: "micaela",
+    name: "Micaela ✨",
+    specialty: "Cosmiatra",
+    services: [
+      {
+        id: 4,
+        name: "Limpieza Facial Profunda",
+        price: 15000,
+        duration: 60,
+        desc: "Limpieza facial profunda con extracción, hidratación y masaje.",
+      },
+      {
+        id: 5,
+        name: "Masajes Faciales",
+        price: 12000,
+        duration: 45,
+        desc: "Masaje facial tonificante con productos de alta calidad.",
+      },
+      {
+        id: 6,
+        name: "Dermaplaning",
+        price: 14000,
+        duration: 45,
+        desc: "Exfoliación profunda con bisturí para eliminar células muertas y vello facial.",
+      },
+      {
+        id: 7,
+        name: "Tratamiento Corporal",
+        price: 18000,
+        duration: 60,
+        desc: "Tratamiento corporal personalizado para mejorar la textura de la piel.",
+      },
+      {
+        id: 8,
+        name: "Exfoliación Corporal",
+        price: 13000,
+        duration: 45,
+        desc: "Exfoliación corporal para renovar la piel y eliminar impurezas.",
+      },
+      {
+        id: 9,
+        name: "Peeling Químico",
+        price: 20000,
+        duration: 60,
+        desc: "Peeling químico para tratar manchas, acné y signos de envejecimiento.",
+      },
+    ],
+  },
+  {
+    id: "patricia",
+    name: "Patricia ✨",
+    specialty: "Podóloga",
+    services: [
+      {
+        id: 10,
+        name: "Pedicuria y Podología",
+        price: 10000,
+        duration: 30,
+        desc: "Corte y tratamiento de uñas, limpieza de talones, extracción de uñas encarnadas y cuidado integral de los pies.",
+      },
+    ],
+  },
+  {
+    id: "patricia_rosa",
+    name: "Patricia y Rosa ✨",
+    specialty: "Especialistas en Depilación Definitiva",
+    services: [
+      {
+        id: 11,
+        name: "Depilación Definitiva (Cuerpo Completo)",
+        price: 28000,
+        duration: 30,
+        desc: "Eliminación progresiva del vello con tecnología láser Soprano Ice, segura y prácticamente indolora.",
+      },
+      {
+        id: 12,
+        name: "Depilación Definitiva (Zonas a elección)",
+        price: 7000,
+        duration: 30,
+        desc: "Eliminación progresiva del vello con tecnología láser Soprano Ice. Elegí las zonas que desees.",
+      },
+    ],
+  },
+];
+
+// ========== CONSTANTES ==========
+
+const TIME_SLOTS = [
   "09:00","09:30","10:00","10:30","11:00","11:30",
   "12:00","12:30","14:00","14:30","15:00","15:30",
   "16:00","16:30","17:00","17:30","18:00",
 ];
-const DAY_NAMES_FULL = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-const DAY_NAMES_SHORT = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-function formatDate(d: Date) { 
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+const OWNER = {
+  whatsapp: "541155916379",
+  alias: "Milagrosdominguez150",
+  titular: "Milagros Celeste Dominguez",
+  direccion: "Cap. O. Cairo 601, Monte Grande",
+};
+
+// ========== FUNCIONES DE FECHA ==========
+
+function getArgentinaDate(): Date {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + (3 * 3600000));
+}
+
+function formatDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
-function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
-function getWeekDates() {
-  const today = new Date();
-  const day = today.getDay();
-  const monday = addDays(today, day === 0 ? -6 : 1 - day);
-  return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+function formatDisplayDate(dateStr: string): string {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
+  return `${day}/${month}/${year}`;
 }
 
-type Appointment = {
-  id: string; client_name: string; client_phone: string;
-  service_name: string; professional_name: string;
-  date: string; time: string; duration_minutes: number; price: number; status: string;
-};
-type Service = { 
-  id: number; 
-  name: string; 
-  description: string; 
-  price: number; 
-  duration: number; 
-  active: boolean;
-  professional: string;
-};
-type BlockedSlot = { date: string; time: string };
+function addDays(date: Date, days: number) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
 
-export default function PanelPage() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState(false);
-  const [activeTab, setActiveTab] = useState<"turnos"|"servicios"|"horarios"|"facturacion"|"marketing">("turnos");
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [completedAppointments, setCompletedAppointments] = useState<Appointment[]>([]);
-  const [filter, setFilter] = useState<"all"|"pending"|"today">("all");
-  const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
-  const [weekDates] = useState(getWeekDates());
-  const [services, setServices] = useState<Service[]>([]);
-  const [enabledSlots, setEnabledSlots] = useState<string[]>(ALL_TIME_SLOTS);
-  const [blockedSlotsByDay, setBlockedSlotsByDay] = useState<BlockedSlot[]>([]);
-  const [selectedDayForBlocking, setSelectedDayForBlocking] = useState<string>("");
-  const [newServiceName, setNewServiceName] = useState("");
-  const [newServicePrice, setNewServicePrice] = useState("");
-  const [newServiceDesc, setNewServiceDesc] = useState("");
-  const [newServiceDuration, setNewServiceDuration] = useState("60");
-  const [newServiceProfessional, setNewServiceProfessional] = useState("");
-  const [moveModal, setMoveModal] = useState<{ open: boolean; apt: Appointment | null }>({ open: false, apt: null });
-  const [moveDate, setMoveDate] = useState("");
-  const [moveTime, setMoveTime] = useState("");
-  const [movingId, setMovingId] = useState(false);
-  const [statsToday, setStatsToday] = useState(0);
-  const [statsPending, setStatsPending] = useState(0);
-  const [statsRevenue, setStatsRevenue] = useState(0);
-  const [topServices, setTopServices] = useState<{ name: string; count: number; revenue: number }[]>([]);
-  const [billingPeriod, setBillingPeriod] = useState<"day"|"week"|"month">("month");
-  const [billingData, setBillingData] = useState<{ date: string; total: number; appointments: Appointment[] }[]>([]);
-  const [loadingServices, setLoadingServices] = useState(true);
-  const [editingServiceId, setEditingServiceId] = useState<number | null>(null);
+const DAY_NAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-  // ── Cargar servicios ──
-  async function loadServices() {
-    setLoadingServices(true);
-    const { data } = await supabase.from("services").select("*").order("name");
-    if (data) setServices(data);
-    setLoadingServices(false);
-  }
+// ========== COMPONENTE PRINCIPAL ==========
 
-  // ── Agregar servicio ──
-  async function addService() {
-    if (!newServiceName || !newServicePrice) return;
-    const { error } = await supabase.from("services").insert({
-      name: newServiceName,
-      description: newServiceDesc || "",
-      price: parseInt(newServicePrice),
-      duration: parseInt(newServiceDuration) || 60,
-      professional: newServiceProfessional || "Milagros ✨",
-      active: true,
-    });
-    if (error) console.error(error);
-    else {
-      setNewServiceName("");
-      setNewServicePrice("");
-      setNewServiceDesc("");
-      setNewServiceDuration("60");
-      setNewServiceProfessional("");
-      loadServices();
+export default function ReservarPage() {
+  const [mostrarPoliticas, setMostrarPoliticas] = useState(true);
+  const [step, setStep] = useState(1);
+  const [selectedProfessional, setSelectedProfessional] = useState<any>(null);
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedTime, setSelectedTime] = useState<string>("");
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+  const [calendarDates, setCalendarDates] = useState<Date[]>([]);
+
+  useEffect(() => {
+    const today = getArgentinaDate();
+    const dates: Date[] = [];
+    for (let i = 0; i < 14; i++) {
+      const d = addDays(today, i);
+      if (d.getDay() !== 0) dates.push(d);
     }
-  }
-
-  // ── Actualizar servicio ──
-  async function updateService(service: Service) {
-    const { error } = await supabase
-      .from("services")
-      .update({
-        name: service.name,
-        description: service.description,
-        price: service.price,
-        duration: service.duration,
-        professional: service.professional,
-        active: service.active,
-      })
-      .eq("id", service.id);
-    if (error) console.error(error);
-    else {
-      setEditingServiceId(null);
-      loadServices();
-    }
-  }
-
-  // ── Toggle activo ──
-  async function toggleService(id: number, active: boolean) {
-    const { error } = await supabase.from("services").update({ active }).eq("id", id);
-    if (error) console.error(error);
-    else loadServices();
-  }
-
-  // ── Cargar turnos ──
-  const loadAppointments = useCallback(async () => {
-    const { data } = await supabase.from("appointments").select("*").order("date").order("time");
-    if (data) {
-      const all = data as Appointment[];
-      setAppointments(all.filter(a => a.status !== "completed" && a.status !== "cancelled"));
-      setCompletedAppointments(all.filter(a => a.status === "completed" || a.status === "cancelled"));
-      const today = formatDate(new Date());
-      setStatsToday(all.filter(a => a.date === today && a.status !== "cancelled").length);
-      setStatsPending(all.filter(a => a.status === "pending" || a.status === "pending_seña").length);
-      const thisMonth = formatDate(new Date()).slice(0, 7);
-      setStatsRevenue(all.filter(a => a.date.startsWith(thisMonth) && a.status === "confirmed").reduce((sum: number, a: Appointment) => sum + (a.price || 0), 0));
-      const svcMap: Record<string, { count: number; revenue: number }> = {};
-      all.forEach((a: Appointment) => {
-        if (a.status === "completed" || a.status === "confirmed") {
-          if (!svcMap[a.service_name]) svcMap[a.service_name] = { count: 0, revenue: 0 };
-          svcMap[a.service_name].count++;
-          svcMap[a.service_name].revenue += a.price || 0;
-        }
-      });
-      setTopServices(Object.entries(svcMap).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.revenue - a.revenue).slice(0, 4));
-    }
+    setCalendarDates(dates);
+    const startDate = today.getDay() === 0 ? addDays(today, 1) : today;
+    setSelectedDate(formatDate(startDate));
   }, []);
 
-  useEffect(() => { if (authenticated) { loadAppointments(); loadServices(); } }, [authenticated, loadAppointments]);
-
-  // ── Billing ──
   useEffect(() => {
-    if (!authenticated) return;
-    const generateBillingData = () => {
-      const allCompleted = [...appointments, ...completedAppointments].filter(a => a.status === "completed");
-      if (billingPeriod === "day") {
-        const today = formatDate(new Date());
-        const dayData = allCompleted.filter(a => a.date === today);
-        setBillingData([{ date: "Hoy", total: dayData.reduce((s, a) => s + (a.price || 0), 0), appointments: dayData }]);
-      } else if (billingPeriod === "week") {
-        const weekData: Record<string, { total: number; appointments: Appointment[] }> = {};
-        weekDates.forEach(d => {
-          const ds = formatDate(d);
-          const dayApps = allCompleted.filter(a => a.date === ds);
-          weekData[ds] = { total: dayApps.reduce((s, a) => s + (a.price || 0), 0), appointments: dayApps };
-        });
-        setBillingData(Object.entries(weekData).map(([date, data]) => ({ date, ...data })));
-      } else {
-        const monthData: Record<string, { total: number; appointments: Appointment[] }> = {};
-        allCompleted.forEach(a => {
-          const monthKey = a.date.slice(0, 7);
-          if (!monthData[monthKey]) monthData[monthKey] = { total: 0, appointments: [] };
-          monthData[monthKey].total += a.price || 0;
-          monthData[monthKey].appointments.push(a);
-        });
-        setBillingData(Object.entries(monthData).map(([date, data]) => ({ date, ...data })).sort((a, b) => b.date.localeCompare(a.date)));
-      }
-    };
-    generateBillingData();
-  }, [authenticated, appointments, completedAppointments, billingPeriod, weekDates]);
+    if (selectedDate && selectedProfessional) fetchBookedSlots();
+  }, [selectedDate, selectedProfessional]);
 
-  function handlePinSubmit() {
-    if (pin === OWNER_PIN) { setAuthenticated(true); setPinError(false); }
-    else { setPinError(true); setPin(""); }
+  async function fetchBookedSlots() {
+    if (!selectedProfessional) return;
+    const { data } = await supabase
+      .from("appointments")
+      .select("time")
+      .eq("date", selectedDate)
+      .eq("professional_name", selectedProfessional.name)
+      .neq("status", "cancelled");
+    if (data) setBookedSlots(data.map((d: any) => d.time));
   }
 
-  const getFilteredAppointments = () => {
-    let dayAppointments = appointments.filter(a => a.date === selectedDate);
-    if (filter === "pending") return dayAppointments.filter(a => a.status === "pending" || a.status === "pending_seña");
-    if (filter === "today") return dayAppointments.filter(a => a.status === "confirmed");
-    return dayAppointments;
-  };
-
-  const filteredAppointments = getFilteredAppointments();
-
-  async function confirmAppointment(apt: Appointment) {
-    await supabase.from("appointments").update({ status: "confirmed" }).eq("id", apt.id);
-    loadAppointments();
-    const [y, m, d] = apt.date.split("-");
-    const mensaje = encodeURIComponent(
-      `🌸 TURNO CONFIRMADO - Beauty Divina 🌸\n\n` +
-      `Hola ${apt.client_name} 👋\n\n` +
-      `✅ Tu turno ha sido CONFIRMADO luego de recibir tu comprobante de seña.\n\n` +
-      `📅 FECHA: ${d}/${m}/${y}\n` +
-      `⏰ HORA: ${apt.time}\n` +
-      `💅🏻 SERVICIO: ${apt.service_name}\n` +
-      `👩🏻‍💼 PROFESIONAL: ${apt.professional_name}\n` +
-      `📍 Dirección: Cap. O. Cairo 601, Monte Grande\n\n` +
-      `📋 Recordá:\n` +
-      `• Tolerancia de 15 minutos (pasado ese tiempo se cobra adicional)\n` +
-      `• No se permiten acompañantes\n` +
-      `• La seña NO es reembolsable\n` +
-      `• Cancelá con 24hs de anticipación para reprogramar\n\n` +
-      `✨ ¡Te esperamos! ✨`
-    );
-    window.open(`https://wa.me/${apt.client_phone}?text=${mensaje}`, "_blank");
-  }
-
-  async function completeAppointment(apt: Appointment) {
-    await supabase.from("appointments").update({ status: "completed" }).eq("id", apt.id);
-    loadAppointments();
-  }
-
-  async function moveAppointment() {
-    if (!moveModal.apt || !moveDate || !moveTime) return;
-    setMovingId(true);
-    await supabase.from("appointments").update({ date: moveDate, time: moveTime, status: "confirmed" }).eq("id", moveModal.apt.id);
-    const apt = moveModal.apt;
-    const [y, m, d] = moveDate.split("-");
-    const msg = encodeURIComponent(
-      `📅 Turno Reprogramado - Beauty Divina\n\nHola ${apt.client_name} 👋\nTu turno fue reprogramado:\n\n` +
-      `💅 ${apt.service_name}\n👩‍💼 ${apt.professional_name}\n📆 Nueva fecha: ${d}/${m}/${y} a las ${moveTime}\n📍 Cap. O. Cairo 601, Monte Grande\n\nSi tenés dudas, escribinos 💕`
-    );
-    window.open(`https://wa.me/${apt.client_phone}?text=${msg}`, "_blank");
-    setMoveModal({ open: false, apt: null });
-    setMovingId(false);
-    loadAppointments();
-  }
-
-  const isSlotBlockedForDay = (date: string, time: string) => {
-    return blockedSlotsByDay.some(bs => bs.date === date && bs.time === time);
-  };
-
-  const toggleSlotForDay = (date: string, time: string) => {
-    if (isSlotBlockedForDay(date, time)) {
-      setBlockedSlotsByDay(prev => prev.filter(bs => !(bs.date === date && bs.time === time)));
-    } else {
-      setBlockedSlotsByDay(prev => [...prev, { date, time }]);
+  async function handleReservar() {
+    if (!selectedService || !selectedDate || !selectedTime || !clientName || !clientPhone) {
+      setError("Por favor completá todos los campos.");
+      return;
     }
-  };
-
-  function toggleGlobalSlot(slot: string) {
-    setEnabledSlots((prev) => prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot].sort());
+    setLoading(true);
+    setError("");
+    const fullPhone = "54" + clientPhone.replace(/\D/g, "");
+    
+    const { error: dbError } = await supabase.from("appointments").insert([{
+      client_name: clientName,
+      client_phone: fullPhone,
+      service_name: selectedService.name,
+      professional_name: selectedProfessional.name,
+      date: selectedDate,
+      time: selectedTime,
+      duration_minutes: selectedService.duration,
+      price: selectedService.price,
+      status: "pending_seña",
+    }]);
+    
+    if (dbError) { 
+      setError("Hubo un error al guardar. Intentá de nuevo."); 
+      setLoading(false); 
+      return; 
+    }
+    
+    const [year, month, day] = selectedDate.split("-");
+    const msg = encodeURIComponent(
+      `✨️ NUEVA RESERVA CON SEÑA PENDIENTE - Beauty Divina\n\n` +
+      `👤 Cliente: ${clientName}\n` +
+      `📱 WhatsApp: +${fullPhone}\n` +
+      `💅 Servicio: ${selectedService.name}\n` +
+      `👩🏻‍💼 Profesional: ${selectedProfessional.name}\n` +
+      `📆 Fecha: ${day}/${month}/${year}\n` +
+      `⏰ Hora: ${selectedTime}\n` +
+      `💰 Precio total: $${selectedService.price.toLocaleString("es-AR")}\n` +
+      `💸 Seña: $5.000\n\n` +
+      `📲 Alias para transferir: ${OWNER.alias}\n` +
+      `👤 Titular: ${OWNER.titular}\n\n` +
+      `🔔 La clienta debe enviar el comprobante de pago para confirmar el turno.\n` +
+      `📍 Dirección: ${OWNER.direccion}`
+    );
+    window.open(`https://wa.me/${OWNER.whatsapp}?text=${msg}`, "_blank");
+    
+    setSuccess(true);
+    setLoading(false);
   }
 
-  const maxRev = topServices[0]?.revenue || 1;
+  // ========== PANTALLA DE POLÍTICAS ==========
 
-  if (!authenticated) {
+  if (mostrarPoliticas) {
     return (
-      <div style={pinStyles.page}>
+      <div style={styles.page}>
         <style>{globalCSS}</style>
-        <div style={pinStyles.card} className="fadeIn">
-          <div style={pinStyles.logoRow}>
-            <span style={pinStyles.logoDot}>✦</span>
-            <span style={pinStyles.logoTxt}>Beauty Divina</span>
+        <div style={modalStyles.overlay}>
+          <div style={modalStyles.modal}>
+            <h3 style={modalStyles.title}>✨️ POLÍTICAS DE TRABAJO 🧚🏻‍♀️✨</h3>
+            <div style={modalStyles.content}>
+              <p><strong>1.</strong> Las sesiones son con turno previo, reservando con una SEÑA de <strong>$5.000</strong>. La seña NO ES REEMBOLSABLE. Sirve para reprogramar avisando mínimo 24hs antes.</p>
+              <p><strong>2.</strong> Una vez que elijas el servicio, completás tus datos y TRANSFERÍS la seña al alias indicado. Luego envías el comprobante por WhatsApp.</p>
+              <p><strong>3.</strong> Se enviarán recordatorios antes del turno. Si no confirmás asistencia, se puede perder la seña.</p>
+              <p><strong>4.</strong> Tiempo de tolerancia: <strong>15 minutos</strong>. Pasado ese tiempo se cobrará un adicional de <strong>$5.000</strong>.</p>
+              <p><strong>5.</strong> No se permiten acompañantes.</p>
+              <p><strong>6.</strong> Al aceptar, podrás ver los servicios disponibles y reservar tu turno.</p>
+            </div>
+            <div style={modalStyles.buttons}>
+              <button style={modalStyles.acceptBtn} onClick={() => setMostrarPoliticas(false)}>
+                ✅ Acepto las políticas
+              </button>
+            </div>
+            <p style={{ fontSize: 11, textAlign: "center", marginTop: 16, color: "#aaa" }}>
+              No podrás reservar sin aceptar las políticas
+            </p>
           </div>
-          <p style={pinStyles.logoSub}>Panel de la dueña</p>
-          <div style={pinStyles.lockEmoji}>🔐</div>
-          <p style={pinStyles.pinHint}>Ingresá tu PIN de acceso</p>
-          <input
-            type="password" inputMode="numeric" maxLength={4}
-            style={{ ...pinStyles.pinInput, ...(pinError ? pinStyles.pinInputErr : {}) }}
-            value={pin}
-            onChange={(e) => { setPin(e.target.value.replace(/\D/g, "")); setPinError(false); }}
-            onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-            placeholder="••••" autoFocus
-          />
-          {pinError && <p style={pinStyles.pinErrTxt}>PIN incorrecto. Intentá de nuevo.</p>}
-          <button style={pinStyles.btn} onClick={handlePinSubmit}>Ingresar →</button>
-          <p style={pinStyles.footer}>Beauty Divina · Cap. O. Cairo 601, Monte Grande</p>
         </div>
       </div>
     );
   }
+
+  // ========== PANTALLA DE ÉXITO ==========
+
+  if (success) {
+    return (
+      <div style={styles.page}>
+        <style>{globalCSS}</style>
+        <div style={styles.successCard}>
+          <div style={styles.successIcon}>🎉</div>
+          <h2 style={styles.successTitle}>¡Reserva pendiente!</h2>
+          <p style={styles.successText}>Tu turno está <strong>pendiente de confirmación</strong>.</p>
+          <p style={styles.successText}>Por favor, transferí la seña de <strong>$5.000</strong> a:</p>
+          <div style={styles.aliasCard}>
+            <p><strong>Alias:</strong> {OWNER.alias}</p>
+            <p><strong>Titular:</strong> {OWNER.titular}</p>
+          </div>
+          <p style={styles.successText}>Luego enviá el comprobante por WhatsApp para confirmar tu turno.</p>
+          <a href={`https://wa.me/${OWNER.whatsapp}?text=Hola! Ya realicé la transferencia de la seña para mi turno de ${selectedService?.name} el ${formatDisplayDate(selectedDate)} a las ${selectedTime}. Mi nombre es ${clientName}.`} target="_blank" style={styles.whatsappBtn}>
+            💬 Enviar comprobante por WhatsApp
+          </a>
+          <button style={styles.primaryBtn} onClick={() => { setStep(1); setSuccess(false); setSelectedService(null); setSelectedProfessional(null); setSelectedTime(""); setClientName(""); setClientPhone(""); }}>
+            Hacer otra reserva
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ========== FLUJO PRINCIPAL ==========
 
   return (
-    <div style={dashboardStyles.page}>
+    <div style={styles.page}>
       <style>{globalCSS}</style>
-
-      <header style={dashboardStyles.header}>
-        <div style={dashboardStyles.headerInner}>
-          <div style={dashboardStyles.logoRow}>
-            <span style={dashboardStyles.logoDot}>✦</span>
-            <span style={dashboardStyles.logoTxt}>Beauty Divina</span>
-          </div>
-          <button style={dashboardStyles.logoutBtn} onClick={() => setAuthenticated(false)}>Salir</button>
+      
+      <header style={{ ...styles.header, padding: "30px 20px 20px" }}>
+        <div style={styles.logoWrap}>
+          <img 
+            src="/logo.png" 
+            alt="Beauty Divina" 
+            style={{ 
+              width: "100%", 
+              maxWidth: "300px", 
+              height: "auto",
+              display: "block",
+              margin: "0 auto"
+            }} 
+          />
         </div>
-        <p style={dashboardStyles.headerSub}>Panel de gestión · Cap. O. Cairo 601, Monte Grande</p>
       </header>
 
-      <div style={dashboardStyles.statsRow}>
-        {[
-          { icon: "📅", val: statsToday, label: "Turnos hoy", color: "#e91e63" },
-          { icon: "⏳", val: statsPending, label: "Pendientes", color: "#f59e0b" },
-          { icon: "💰", val: `$${statsRevenue.toLocaleString("es-AR")}`, label: "Facturado este mes", color: "#10b981", small: true },
-        ].map((st, i) => (
-          <div key={i} style={{ ...dashboardStyles.statCard, borderTop: `3px solid ${st.color}` }}>
-            <span style={dashboardStyles.statIcon}>{st.icon}</span>
-            <span style={{ ...dashboardStyles.statVal, ...(st.small ? { fontSize: 18 } : {}) }}>{st.val}</span>
-            <span style={dashboardStyles.statLabel}>{st.label}</span>
+      <div style={styles.progressWrap}>
+        {[1,2,3,4,5].map((s) => (
+          <div key={s} style={styles.progressItem}>
+            <div style={{ ...styles.progressCircle, ...(step >= s ? styles.progressActive : {}) }}>
+              {step > s ? "✓" : s}
+            </div>
+            <span style={{ ...styles.progressLabel, ...(step >= s ? { color: "#e91e63" } : { color: "#a0738c" }) }}>
+              {s === 1 ? "Profesional" : s === 2 ? "Servicio" : s === 3 ? "Fecha" : s === 4 ? "Horario" : "Datos"}
+            </span>
+            {s < 5 && <div style={{ ...styles.progressLine, ...(step > s ? styles.progressLineActive : {}) }} />}
           </div>
         ))}
       </div>
 
-      <div style={dashboardStyles.tabsRow}>
-        {(["turnos", "servicios", "horarios", "facturacion", "marketing"] as const).map((tab) => (
-          <button key={tab} style={{ ...dashboardStyles.tab, ...(activeTab === tab ? dashboardStyles.tabActive : {}) }} onClick={() => setActiveTab(tab)}>
-            {tab === "turnos" ? "📆 Turnos" : tab === "servicios" ? "💅 Servicios" : tab === "horarios" ? "⏰ Horarios" : tab === "facturacion" ? "💰 Facturación" : "📢 Marketing"}
-          </button>
-        ))}
-      </div>
+      <main style={{ ...styles.main, maxWidth: 500 }}>
 
-      <main style={dashboardStyles.main}>
-
-        {activeTab === "turnos" && (
-          <div className="fadeIn">
-            <div style={dashboardStyles.filterRow}>
-              <button onClick={() => setFilter("all")} style={{ ...dashboardStyles.filterBtn, ...(filter === "all" ? dashboardStyles.filterActive : {}) }}>📋 Todos</button>
-              <button onClick={() => setFilter("pending")} style={{ ...dashboardStyles.filterBtn, ...(filter === "pending" ? dashboardStyles.filterActive : {}) }}>⏳ Pendientes</button>
-              <button onClick={() => setFilter("today")} style={{ ...dashboardStyles.filterBtn, ...(filter === "today" ? dashboardStyles.filterActive : {}) }}>✅ Confirmados hoy</button>
+        {/* ===== PASO 1: PROFESIONAL ===== */}
+        {step === 1 && (
+          <div style={styles.stepWrap} className="fadeIn">
+            <h2 style={styles.stepTitle}>✨ ¿Con quién querés atenderte? ✨</h2>
+            <p style={styles.stepSub}>Elegí tu profesional de confianza</p>
+            <div style={styles.profGrid}>
+              {PROFESSIONALS.map((p) => (
+                <div key={p.id} style={{ ...styles.profCard, ...(selectedProfessional?.id === p.id ? styles.profCardActive : {}) }} className="card-hover" onClick={() => { setSelectedProfessional(p); setStep(2); }}>
+                  <div style={styles.profAvatar}>
+                    <span style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>
+                      {p.name.split(" ")[0][0]}{p.name.split(" ")[1]?.[0] || ""}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 style={styles.profName}>{p.name}</h3>
+                    <p style={styles.profRole}>{p.specialty}</p>
+                  </div>
+                  {selectedProfessional?.id === p.id && <div style={styles.selectedBadge}>✓ Seleccionada</div>}
+                </div>
+              ))}
             </div>
+          </div>
+        )}
 
-            <div style={dashboardStyles.weekScroll}>
-              {weekDates.map((d) => {
-                const ds = formatDate(d);
-                const count = appointments.filter((a) => a.date === ds).length;
-                const isSel = selectedDate === ds;
-                const isToday = formatDate(new Date()) === ds;
+        {/* ===== PASO 2: SERVICIO ===== */}
+        {step === 2 && (
+          <div style={styles.stepWrap} className="fadeIn">
+            <button style={styles.backBtn} onClick={() => setStep(1)}>← Volver</button>
+            <h2 style={styles.stepTitle}>✨ ¿Qué servicio querés? ✨</h2>
+            <p style={styles.stepSub}>Elegí el tratamiento que más te guste de {selectedProfessional?.name}</p>
+            <div style={styles.serviceGrid}>
+              {selectedProfessional?.services.map((s: any) => (
+                <div key={s.id} style={{ ...styles.serviceCard, ...(selectedService?.id === s.id ? styles.serviceCardActive : {}) }} className="card-hover" onClick={() => { setSelectedService(s); setStep(3); }}>
+                  <span style={styles.serviceIcon}>💅</span>
+                  <h3 style={styles.serviceName}>{s.name}</h3>
+                  <p style={styles.serviceDesc}>{s.desc}</p>
+                  <div style={styles.serviceFooter}>
+                    <span style={styles.servicePrice}>${s.price.toLocaleString("es-AR")}</span>
+                    <span style={styles.serviceDuration}>{s.duration} min</span>
+                  </div>
+                  {selectedService?.id === s.id && <div style={styles.selectedBadge}>✓ Seleccionado</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ===== PASO 3: FECHA ===== */}
+        {step === 3 && (
+          <div style={styles.stepWrap} className="fadeIn">
+            <button style={styles.backBtn} onClick={() => setStep(2)}>← Volver</button>
+            <h2 style={styles.stepTitle}>✨ ¿Cuándo te viene bien? ✨</h2>
+            <p style={styles.stepSub}>Seleccioná fecha disponible</p>
+            <div style={styles.calendarScroll}>
+              {calendarDates.map((d) => {
+                const dateStr = formatDate(d);
+                const isSelected = selectedDate === dateStr;
+                const isToday = formatDate(getArgentinaDate()) === dateStr;
                 return (
-                  <div
-                    key={ds}
-                    style={{ ...dashboardStyles.weekDay, ...(isSel ? dashboardStyles.weekDayActive : {}), ...(isToday && !isSel ? dashboardStyles.weekDayToday : {}) }}
-                    className="card-lift"
-                    onClick={() => setSelectedDate(ds)}
-                  >
-                    <span style={{ ...dashboardStyles.wdName, ...(isSel ? { color: "#fff" } : {}) }}>{DAY_NAMES_SHORT[d.getDay()]}</span>
-                    <span style={{ ...dashboardStyles.wdNum, ...(isSel ? { color: "#fff" } : {}) }}>{d.getDate()}</span>
-                    {count > 0 && <span style={{ ...dashboardStyles.wdBadge, ...(isSel ? { background: "rgba(255,255,255,0.3)", color: "#fff" } : {}) }}>{count}</span>}
+                  <div key={dateStr} style={{ ...styles.calDay, ...(isSelected ? styles.calDayActive : {}), ...(isToday ? styles.calDayToday : {}) }} className="card-hover" onClick={() => { setSelectedDate(dateStr); setStep(4); }}>
+                    <span style={styles.calDayName}>{DAY_NAMES[d.getDay()]}</span>
+                    <span style={styles.calDayNum}>{d.getDate()}</span>
+                    <span style={styles.calDayMonth}>{MONTH_NAMES[d.getMonth()].slice(0, 3)}</span>
                   </div>
                 );
               })}
             </div>
-
-            <h3 style={dashboardStyles.secTitle}>
-              {DAY_NAMES_FULL[new Date(selectedDate + "T12:00:00").getDay()]} {new Date(selectedDate + "T12:00:00").getDate()} de {MONTH_NAMES[new Date(selectedDate + "T12:00:00").getMonth()]}
-            </h3>
-
-            {filteredAppointments.length === 0 ? (
-              <div style={dashboardStyles.emptyCard}>
-                <span style={{ fontSize: 38 }}>🌸</span>
-                <p style={dashboardStyles.emptyTxt}>Sin turnos para este día</p>
-              </div>
-            ) : (
-              <div style={dashboardStyles.aptList}>
-                {filteredAppointments.map((apt) => (
-                  <div key={apt.id} style={{ ...dashboardStyles.aptCard, ...(apt.status === "confirmed" ? dashboardStyles.aptConfirmed : apt.status === "cancelled" ? dashboardStyles.aptCancelled : {}) }}>
-                    <div style={dashboardStyles.aptTimeCol}>
-                      <span style={dashboardStyles.aptTime}>{apt.time}</span>
-                      <span style={{ ...dashboardStyles.aptStatus, ...(apt.status === "confirmed" ? dashboardStyles.statusOk : apt.status === "cancelled" ? dashboardStyles.statusNo : dashboardStyles.statusWait) }}>
-                        {apt.status === "confirmed" ? "✓" : apt.status === "cancelled" ? "✗" : apt.status === "pending_seña" ? "💰" : "⏳"}
-                      </span>
-                    </div>
-                    <div style={dashboardStyles.aptInfo}>
-                      <p style={dashboardStyles.aptName}>{apt.client_name}</p>
-                      <p style={dashboardStyles.aptSvc}>{apt.service_name}</p>
-                      <p style={dashboardStyles.aptProf}>👩‍💼 {apt.professional_name}</p>
-                      <p style={dashboardStyles.aptPrice}>${apt.price?.toLocaleString("es-AR")}</p>
-                      {apt.status === "pending_seña" && (
-                        <p style={{ fontSize: 11, color: "#f59e0b", marginTop: 4 }}>💰 Esperando confirmación de pago</p>
-                      )}
-                    </div>
-                    {apt.status !== "cancelled" && (
-                      <div style={dashboardStyles.aptBtns}>
-                        {(apt.status === "pending_seña" || apt.status === "pending") && (
-                          <button style={dashboardStyles.btnConfirmApt} onClick={() => confirmAppointment(apt)}>
-                            ✅ Confirmar
-                          </button>
-                        )}
-                        {apt.status === "confirmed" && (
-                          <>
-                            <button style={dashboardStyles.btnComplete} onClick={() => completeAppointment(apt)}>
-                              ✓ Completar
-                            </button>
-                            <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
-                              <select
-                                id={`horas-${apt.id}`}
-                                style={{
-                                  background: "rgba(255,255,255,0.05)",
-                                  border: "1px solid var(--br)",
-                                  borderRadius: 8,
-                                  padding: "6px 8px",
-                                  color: "white",
-                                  fontSize: 11,
-                                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                                  cursor: "pointer",
-                                  minWidth: "60px"
-                                }}
-                              >
-                                <option value="1">1hs</option>
-                                <option value="2">2hs</option>
-                                <option value="3">3hs</option>
-                                <option value="6">6hs</option>
-                                <option value="12">12hs</option>
-                                <option value="24" selected>24hs</option>
-                                <option value="48">48hs</option>
-                              </select>
-                              <button
-                                onClick={() => {
-                                  const horas = parseInt(document.getElementById(`horas-${apt.id}`)?.value || "24");
-                                  const [y, m, d] = apt.date.split("-");
-                                  const mensaje = encodeURIComponent(
-                                    `🌸 RECORDATORIO - Beauty Divina\n\n` +
-                                    `Hola ${apt.client_name} ✨\n\n` +
-                                    `Te recordamos que tienes un turno en ${horas} horas:\n\n` +
-                                    `📅 ${d}/${m}/${y}\n` +
-                                    `⏰ ${apt.time}hs\n` +
-                                    `💅🏻 ${apt.service_name}\n` +
-                                    `👩🏻‍💼 ${apt.professional_name}\n` +
-                                    `📍 Cap. O. Cairo 601, Monte Grande\n\n` +
-                                    `Confirmá tu asistencia respondiendo este mensaje 🧚🏻‍♀️✨`
-                                  );
-                                  window.open(`https://wa.me/${apt.client_phone}?text=${mensaje}`, "_blank");
-                                }}
-                                style={{
-                                  background: "#f59e0b",
-                                  border: "none",
-                                  borderRadius: 12,
-                                  color: "#fff",
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  padding: "9px 14px",
-                                  cursor: "pointer",
-                                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                                  whiteSpace: "nowrap"
-                                }}
-                              >
-                                ⏰ Recordatorio
-                              </button>
-                            </div>
-                          </>
-                        )}
-                        <button style={dashboardStyles.btnMove} onClick={() => { setMoveModal({ open: true, apt }); setMoveDate(apt.date); setMoveTime(apt.time); }}>
-                          📅 Mover
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {completedAppointments.length > 0 && (
-              <>
-                <h3 style={{ ...dashboardStyles.secTitle, marginTop: 30 }}>📋 Historial de turnos completados</h3>
-                <div style={dashboardStyles.aptList}>
-                  {completedAppointments.slice(0, 5).map((apt) => (
-                    <div key={apt.id} style={{ ...dashboardStyles.aptCard, opacity: 0.7 }}>
-                      <div style={dashboardStyles.aptTimeCol}>
-                        <span style={dashboardStyles.aptTime}>{apt.time}</span>
-                        <span style={{ ...dashboardStyles.aptStatus, background: "rgba(100,100,100,0.1)", color: "#888" }}>✓</span>
-                      </div>
-                      <div style={dashboardStyles.aptInfo}>
-                        <p style={dashboardStyles.aptName}>{apt.client_name}</p>
-                        <p style={dashboardStyles.aptSvc}>{apt.service_name}</p>
-                        <p style={dashboardStyles.aptProf}>👩‍💼 {apt.professional_name}</p>
-                        <p style={dashboardStyles.aptPrice}>${apt.price?.toLocaleString("es-AR")}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {topServices.length > 0 && (
-              <>
-                <h3 style={{ ...dashboardStyles.secTitle, marginTop: 30 }}>🏆 Top Servicios del Mes</h3>
-                <div style={dashboardStyles.topList}>
-                  {topServices.map((sv, i) => (
-                    <div key={sv.name} style={dashboardStyles.topItem}>
-                      <span style={dashboardStyles.topRank}>#{i + 1}</span>
-                      <div style={dashboardStyles.topInfo}>
-                        <div style={dashboardStyles.topName}>{sv.name}</div>
-                        <div style={dashboardStyles.topBarWrap}><div style={{ ...dashboardStyles.topBar, width: `${(sv.revenue / maxRev) * 100}%` }} /></div>
-                        <div style={dashboardStyles.topMeta}>
-                          <span style={dashboardStyles.topCount}>{sv.count} turno{sv.count !== 1 ? "s" : ""}</span>
-                          <span style={dashboardStyles.topRev}>${sv.revenue.toLocaleString("es-AR")}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
         )}
 
-        {activeTab === "servicios" && (
-          <div className="fadeIn">
-            <h3 style={dashboardStyles.secTitle}>Servicios del salón</h3>
-            {loadingServices ? (
-              <p style={{ color: "#a0738c" }}>Cargando servicios...</p>
-            ) : (
-              <div style={dashboardStyles.svcList}>
-                {services.map((sv) => (
-                  <div key={sv.id} style={{ ...dashboardStyles.svcCard, ...(!sv.active ? dashboardStyles.svcOff : {}) }}>
-                    <div>
-                      <p style={dashboardStyles.svcName}>{sv.name}</p>
-                      {editingServiceId === sv.id ? (
-                        <>
-                          <input
-                            type="text"
-                            value={sv.description || ""}
-                            onChange={(e) => {
-                              const updated = services.map(s => s.id === sv.id ? { ...s, description: e.target.value } : s);
-                              setServices(updated);
-                            }}
-                            style={dashboardStyles.input}
-                            placeholder="Descripción"
-                          />
-                          <input
-                            type="number"
-                            value={sv.price}
-                            onChange={(e) => {
-                              const updated = services.map(s => s.id === sv.id ? { ...s, price: parseInt(e.target.value) } : s);
-                              setServices(updated);
-                            }}
-                            style={dashboardStyles.input}
-                            placeholder="Precio"
-                          />
-                          <input
-                            type="text"
-                            value={sv.professional || ""}
-                            onChange={(e) => {
-                              const updated = services.map(s => s.id === sv.id ? { ...s, professional: e.target.value } : s);
-                              setServices(updated);
-                            }}
-                            style={dashboardStyles.input}
-                            placeholder="Profesional"
-                          />
-                          <button onClick={() => updateService(sv)} style={dashboardStyles.btnAdd}>Guardar</button>
-                          <button onClick={() => setEditingServiceId(null)} style={dashboardStyles.btnModalCancel}>Cancelar</button>
-                        </>
-                      ) : (
-                        <>
-                          <p style={dashboardStyles.svcDesc}>{sv.description || "Sin descripción"}</p>
-                          <p style={dashboardStyles.svcPrice}>${sv.price.toLocaleString("es-AR")}</p>
-                          <p style={{ fontSize: 12, color: "#a0738c" }}>👩‍💼 {sv.professional || "Sin profesional"}</p>
-                          <button onClick={() => setEditingServiceId(sv.id)} style={dashboardStyles.btnMove}>✏️ Editar</button>
-                        </>
-                      )}
-                    </div>
-                    <button
-                      style={{ ...dashboardStyles.toggleBtn, ...(sv.active ? dashboardStyles.toggleOn : dashboardStyles.toggleOff) }}
-                      onClick={() => toggleService(sv.id, !sv.active)}
-                    >
-                      {sv.active ? "● Activo" : "○ Oculto"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <h3 style={{ ...dashboardStyles.secTitle, marginTop: 28 }}>Agregar servicio</h3>
-            <div style={dashboardStyles.addForm}>
-              <input style={dashboardStyles.input} placeholder="Nombre del servicio" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
-              <input style={dashboardStyles.input} placeholder="Descripción" value={newServiceDesc} onChange={(e) => setNewServiceDesc(e.target.value)} />
-              <input style={dashboardStyles.input} placeholder="Precio (ej: 10000)" inputMode="numeric" value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value.replace(/\D/g, ""))} />
-              <input style={dashboardStyles.input} placeholder="Duración (min)" inputMode="numeric" value={newServiceDuration} onChange={(e) => setNewServiceDuration(e.target.value)} />
-              <input style={dashboardStyles.input} placeholder="Profesional (ej: Milagros ✨)" value={newServiceProfessional} onChange={(e) => setNewServiceProfessional(e.target.value)} />
-              <button style={dashboardStyles.btnAdd} onClick={addService}>+ Agregar servicio</button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "horarios" && (
-          <div className="fadeIn">
-            <h3 style={dashboardStyles.secTitle}>Horarios globales</h3>
-            <p style={dashboardStyles.secSub}>Los horarios desactivados no estarán disponibles para ningún día.</p>
-            <div style={dashboardStyles.slotsGrid}>
-              {ALL_TIME_SLOTS.map((slot) => {
-                const on = enabledSlots.includes(slot);
+        {/* ===== PASO 4: HORARIO ===== */}
+        {step === 4 && (
+          <div style={styles.stepWrap} className="fadeIn">
+            <button style={styles.backBtn} onClick={() => setStep(3)}>← Volver</button>
+            <h2 style={styles.stepTitle}>✨ Horarios disponibles ✨</h2>
+            <p style={styles.stepSub}>Elegí tu horario preferido</p>
+            <div style={styles.slotGrid}>
+              {TIME_SLOTS.map((t) => {
+                const isBooked = bookedSlots.includes(t);
+                const isSelected = selectedTime === t;
                 return (
-                  <div key={slot} style={{ ...dashboardStyles.slotCard, ...(on ? dashboardStyles.slotOn : dashboardStyles.slotOffCard) }} className="card-lift" onClick={() => toggleGlobalSlot(slot)}>
-                    <span style={dashboardStyles.slotTime}>{slot}</span>
-                    <span style={{ fontSize: 16 }}>{on ? "🟢" : "⭕"}</span>
-                  </div>
+                  <button key={t} disabled={isBooked} style={{ ...styles.slotBtn, ...(isBooked ? styles.slotBooked : {}), ...(isSelected ? styles.slotSelected : {}) }} onClick={() => !isBooked && setSelectedTime(t)}>
+                    {t}
+                    {isBooked && <span style={styles.slotBusyLabel}>Ocupado</span>}
+                  </button>
                 );
               })}
             </div>
-            <div style={dashboardStyles.slotFooter}>
-              <span style={dashboardStyles.slotCount}>{enabledSlots.length}/{ALL_TIME_SLOTS.length} activos</span>
-              <button style={dashboardStyles.resetBtn} onClick={() => setEnabledSlots(ALL_TIME_SLOTS)}>Activar todos</button>
-            </div>
-
-            <h3 style={{ ...dashboardStyles.secTitle, marginTop: 28 }}>Bloqueos por día específico</h3>
-            <p style={dashboardStyles.secSub}>Seleccioná un día para bloquear horarios específicos.</p>
-            <div style={dashboardStyles.weekScroll}>
-              {weekDates.map((d) => {
-                const ds = formatDate(d);
-                const isSel = selectedDayForBlocking === ds;
-                return (
-                  <div
-                    key={ds}
-                    style={{ ...dashboardStyles.weekDay, ...(isSel ? dashboardStyles.weekDayActive : {}) }}
-                    className="card-lift"
-                    onClick={() => setSelectedDayForBlocking(ds)}
-                  >
-                    <span style={{ ...dashboardStyles.wdName, ...(isSel ? { color: "#fff" } : {}) }}>{DAY_NAMES_SHORT[d.getDay()]}</span>
-                    <span style={{ ...dashboardStyles.wdNum, ...(isSel ? { color: "#fff" } : {}) }}>{d.getDate()}</span>
-                  </div>
-                );
-              })}
-            </div>
-            {selectedDayForBlocking && (
-              <div style={dashboardStyles.slotsGrid}>
-                {ALL_TIME_SLOTS.map((slot) => {
-                  const blocked = isSlotBlockedForDay(selectedDayForBlocking, slot);
-                  const globalEnabled = enabledSlots.includes(slot);
-                  return (
-                    <div
-                      key={slot}
-                      style={{ ...dashboardStyles.slotCard, ...(blocked ? dashboardStyles.slotBlockedCard : (globalEnabled ? dashboardStyles.slotOn : dashboardStyles.slotOffCard)) }}
-                      className="card-lift"
-                      onClick={() => toggleSlotForDay(selectedDayForBlocking, slot)}
-                    >
-                      <span style={dashboardStyles.slotTime}>{slot}</span>
-                      <span style={{ fontSize: 16 }}>{blocked ? "🔴" : (globalEnabled ? "🟢" : "⭕")}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <div style={dashboardStyles.slotFooter}>
-              <span style={dashboardStyles.slotCount}>{blockedSlotsByDay.filter(bs => bs.date === selectedDayForBlocking).length} bloqueados para este día</span>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "facturacion" && (
-          <div className="fadeIn">
-            <div style={dashboardStyles.billingPeriodRow}>
-              <button onClick={() => setBillingPeriod("day")} style={{ ...dashboardStyles.billingPeriodBtn, ...(billingPeriod === "day" ? dashboardStyles.billingPeriodActive : {}) }}>📅 Por día</button>
-              <button onClick={() => setBillingPeriod("week")} style={{ ...dashboardStyles.billingPeriodBtn, ...(billingPeriod === "week" ? dashboardStyles.billingPeriodActive : {}) }}>📆 Por semana</button>
-              <button onClick={() => setBillingPeriod("month")} style={{ ...dashboardStyles.billingPeriodBtn, ...(billingPeriod === "month" ? dashboardStyles.billingPeriodActive : {}) }}>📊 Por mes</button>
-            </div>
-            {billingData.map((data, idx) => (
-              <div key={idx} style={dashboardStyles.billingCard}>
-                <div style={dashboardStyles.billingHeader}>
-                  <span style={dashboardStyles.billingDate}>{data.date}</span>
-                  <span style={dashboardStyles.billingTotal}>💰 ${data.total.toLocaleString("es-AR")}</span>
-                </div>
-                {data.appointments.length > 0 && (
-                  <div style={dashboardStyles.billingDetails}>
-                    {data.appointments.map((apt, i) => (
-                      <div key={i} style={dashboardStyles.billingItem}>
-                        <span style={dashboardStyles.billingItemName}>{apt.client_name} - {apt.service_name}</span>
-                        <span style={dashboardStyles.billingItemPrice}>${apt.price?.toLocaleString("es-AR")}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-            {billingData.length === 0 && (
-              <div style={dashboardStyles.emptyCard}>
-                <span style={{ fontSize: 38 }}>📭</span>
-                <p style={dashboardStyles.emptyTxt}>No hay turnos completados en este período</p>
-              </div>
+            {selectedTime && (
+              <button style={{ ...styles.primaryBtn }} onClick={() => setStep(5)}>
+                Continuar →
+              </button>
             )}
           </div>
         )}
 
-        {activeTab === "marketing" && (
-          <div className="fadeIn">
-            <h3 style={dashboardStyles.secTitle}>📢 Material de Promoción</h3>
-            <p style={dashboardStyles.secSub}>Usá estos textos para avisar a tus clientas que ahora tienen turnos online.</p>
+        {/* ===== PASO 5: DATOS ===== */}
+        {step === 5 && (
+          <div style={styles.stepWrap} className="fadeIn">
+            <button style={styles.backBtn} onClick={() => setStep(4)}>← Volver</button>
+            <h2 style={styles.stepTitle}>✨ Tus datos ✨</h2>
+            <p style={styles.stepSub}>Último paso para reservar tu turno</p>
+            <div style={styles.summaryCard}>
+              <h4 style={styles.summaryTitle}>📋 Resumen de tu turno</h4>
+              <div style={styles.summaryRow}><span>👩‍💼 Profesional</span><strong>{selectedProfessional?.name}</strong></div>
+              <div style={styles.summaryRow}><span>💅🏻 Servicio</span><strong>{selectedService?.name}</strong></div>
+              <div style={styles.summaryRow}><span>📆 Fecha</span><strong>{formatDisplayDate(selectedDate)}</strong></div>
+              <div style={styles.summaryRow}><span>⏰ Hora</span><strong>{selectedTime}</strong></div>
+              <div style={styles.summaryRow}><span>💰 Precio total</span><strong style={{ color: "#e91e63" }}>${selectedService?.price.toLocaleString("es-AR")}</strong></div>
+              <div style={styles.summaryRow}><span>💸 Seña requerida</span><strong style={{ color: "#e91e63" }}>$5.000</strong></div>
+            </div>
+            
+            <div style={styles.mapContainer}>
+              <iframe 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3279.5!2d-58.4696!3d-34.8!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bcc9a5c4e5c5e5%3A0x0!2zQ2FwLiBPLiBDYWlybyA2MDEsIEIxODQyQ1NDIE1vbnRlIEdyYW5kZSwgUHJvdmluY2lhIGRlIEJ1ZW5vcyBBaXJlcywgQXJnZW50aW5h!5e0!3m2!1ses!2sar!4v1" 
+                width="100%" 
+                height="220" 
+                style={{ border: 0, borderRadius: 16 }}
+                allowFullScreen 
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+              <p style={{ fontSize: 12, color: "#a0738c", marginTop: 8, textAlign: "center" }}>
+                📍 {OWNER.direccion}
+              </p>
+            </div>
 
-            <div style={dashboardStyles.marketingCard}>
-              <h4 style={dashboardStyles.marketingTitle}>💬 Para enviar por WhatsApp a tus clientas</h4>
-              <div style={dashboardStyles.copyBox}>
-                <p style={dashboardStyles.copyText}>✨ ¡Novedad! ✨ A partir de ahora podés reservar tu turno online desde este link: [link de reserva]. Elegís servicio, profesional, día y hora en 1 minuto. ¡Empezá a usarlo! 💅</p>
-                <button style={dashboardStyles.copyBtn} onClick={() => navigator.clipboard.writeText("✨ ¡Novedad! ✨ A partir de ahora podés reservar tu turno online desde este link: [link de reserva]. Elegís servicio, profesional, día y hora en 1 minuto. ¡Empezá a usarlo! 💅")}>📋 Copiar</button>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>✨ Tu nombre completo ✨</label>
+              <input style={styles.input} placeholder="Ej: María García" value={clientName} onChange={(e) => setClientName(e.target.value)} />
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>✨ Tu WhatsApp ✨ <span style={{ opacity: 0.6, fontSize: 12 }}>(sin código de país)</span></label>
+              <div style={styles.phoneWrap}>
+                <span style={styles.phonePrefix}>+54</span>
+                <input style={{ ...styles.input, borderRadius: "0 12px 12px 0", borderLeft: "none" }} placeholder="Ej: 1134567890" value={clientPhone} onChange={(e) => setClientPhone(e.target.value.replace(/\D/g, ""))} maxLength={12} inputMode="tel" />
               </div>
             </div>
-
-            <div style={dashboardStyles.marketingCard}>
-              <h4 style={dashboardStyles.marketingTitle}>📱 Para Instagram (post o historia)</h4>
-              <div style={dashboardStyles.copyBox}>
-                <p style={dashboardStyles.copyText}>🌸 ¡Nos digitalizamos! 🌸 Ahora podés sacar tu turno SOLA desde nuestro nuevo sistema online. Reservá en 4 pasos, elegí profesional, día y hora, y listo. Además, el sistema te va a recordar 24hs antes para que no te olvides. ¿Empezamos? Link en bio 🔗</p>
-                <button style={dashboardStyles.copyBtn} onClick={() => navigator.clipboard.writeText("🌸 ¡Nos digitalizamos! 🌸 Ahora podés sacar tu turno SOLA desde nuestro nuevo sistema online. Reservá en 4 pasos, elegí profesional, día y hora, y listo. Además, el sistema te va a recordar 24hs antes para que no te olvides. ¿Empezamos? Link en bio 🔗")}>📋 Copiar</button>
-              </div>
-            </div>
-
-            <div style={dashboardStyles.marketingCard}>
-              <h4 style={dashboardStyles.marketingTitle}>💰 Para explicar la seña</h4>
-              <div style={dashboardStyles.copyBox}>
-                <p style={dashboardStyles.copyText}>🔔 Para asegurar tu turno, te pedimos una seña de $5.000 (se descuenta del servicio). La seña no es reembolsable, pero podés reprogramar avisando con 24hs de anticipación. Así nos aseguramos de que nadie se quede sin su horario preferido 💕</p>
-                <button style={dashboardStyles.copyBtn} onClick={() => navigator.clipboard.writeText("🔔 Para asegurar tu turno, te pedimos una seña de $5.000 (se descuenta del servicio). La seña no es reembolsable, pero podés reprogramar avisando con 24hs de anticipación. Así nos aseguramos de que nadie se quede sin su horario preferido 💕")}>📋 Copiar</button>
-              </div>
-            </div>
-
-            <div style={dashboardStyles.marketingCard}>
-              <h4 style={dashboardStyles.marketingTitle}>⏰ Recordatorio automático</h4>
-              <div style={dashboardStyles.copyBox}>
-                <p style={dashboardStyles.copyText}>📲 ¿Sabías que nuestro sistema te envía un recordatorio 24 horas antes de tu turno? Así no se te pasa ninguna cita. ¡Tranquilidad para vos y para nosotras!</p>
-                <button style={dashboardStyles.copyBtn} onClick={() => navigator.clipboard.writeText("📲 ¿Sabías que nuestro sistema te envía un recordatorio 24 horas antes de tu turno? Así no se te pasa ninguna cita. ¡Tranquilidad para vos y para nosotras!")}>📋 Copiar</button>
-              </div>
-            </div>
-
-            <div style={dashboardStyles.marketingCard}>
-              <h4 style={dashboardStyles.marketingTitle}>📆 Organización</h4>
-              <div style={dashboardStyles.copyBox}>
-                <p style={dashboardStyles.copyText}>📅 Ahora los turnos se ven en tiempo real. Si ves un horario libre, podés reservarlo al instante. Sin esperar respuesta, sin llamar, sin mensajes. ¡Directo!</p>
-                <button style={dashboardStyles.copyBtn} onClick={() => navigator.clipboard.writeText("📅 Ahora los turnos se ven en tiempo real. Si ves un horario libre, podés reservarlo al instante. Sin esperar respuesta, sin llamar, sin mensajes. ¡Directo!")}>📋 Copiar</button>
-              </div>
-            </div>
-
-            <div style={dashboardStyles.marketingNote}>
-              <p>💡 <strong>Tip:</strong> Guardá el link de reservas en tu WhatsApp destacado o en la biografía de Instagram. Así tus clientas lo tienen siempre a mano.</p>
-            </div>
+            {error && <div style={styles.errorMsg}>{error}</div>}
+            <button style={{ ...styles.primaryBtn, ...(loading ? styles.btnDisabled : {}) }} disabled={loading} onClick={handleReservar}>
+              {loading ? "Reservando..." : "✨ Reservar turno ✨"}
+            </button>
+            <p style={styles.disclaimer}>Al reservar, se te pedirá una seña de $5.000 para confirmar el turno. 🌸</p>
           </div>
         )}
       </main>
-
-      {moveModal.open && moveModal.apt && (
-        <div style={dashboardStyles.overlay} onClick={() => setMoveModal({ open: false, apt: null })}>
-          <div style={dashboardStyles.modal} onClick={(e) => e.stopPropagation()} className="fadeIn">
-            <h3 style={dashboardStyles.modalTitle}>📅 Reprogramar turno</h3>
-            <p style={dashboardStyles.modalSub}>{moveModal.apt.client_name} · {moveModal.apt.service_name}</p>
-            <label style={dashboardStyles.label}>Nueva fecha</label>
-            <input type="date" style={dashboardStyles.input} value={moveDate} onChange={(e) => setMoveDate(e.target.value)} min={formatDate(new Date())} />
-            <label style={{ ...dashboardStyles.label, marginTop: 14 }}>Nuevo horario</label>
-            <div style={dashboardStyles.modalSlots}>
-              {ALL_TIME_SLOTS.map((t) => (
-                <button key={t} style={{ ...dashboardStyles.modalSlotBtn, ...(moveTime === t ? dashboardStyles.modalSlotActive : {}) }} onClick={() => setMoveTime(t)}>{t}</button>
-              ))}
-            </div>
-            <div style={dashboardStyles.modalActions}>
-              <button style={dashboardStyles.btnModalCancel} onClick={() => setMoveModal({ open: false, apt: null })}>Cancelar</button>
-              <button style={dashboardStyles.btnModalConfirm} onClick={moveAppointment} disabled={movingId}>{movingId ? "Guardando..." : "✓ Confirmar"}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <footer style={styles.footer}>
+        <p style={{ margin: 0, opacity: 0.4, fontSize: 12 }}>Beauty Divina © {new Date().getFullYear()}</p>
+      </footer>
     </div>
   );
 }
 
 const globalCSS = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #fff0f5; }
-  .fadeIn { animation: fadeIn 0.35s cubic-bezier(.4,0,.2,1) both; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff0f5; }
+  .fadeIn { animation: fadeIn 0.4s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-  .card-lift { transition: transform 0.18s ease, box-shadow 0.18s ease; cursor: pointer; }
-  .card-lift:hover { transform: translateY(-3px); box-shadow: 0 12px 36px rgba(233,30,99,0.13); }
-  input:focus { outline: none; border-color: #ff6eb4 !important; box-shadow: 0 0 0 4px rgba(255,110,180,0.12) !important; }
-  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.3) sepia(1) hue-rotate(290deg); opacity: 0.6; }
-  button:active { transform: scale(0.97) !important; }
-  ::-webkit-scrollbar { height: 4px; width: 4px; }
-  ::-webkit-scrollbar-thumb { background: #ffb3d1; border-radius: 4px; }
+  .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; }
+  .card-hover:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(255,110,180,0.25); }
+  input:focus { outline: none; border-color: #ff6eb4 !important; box-shadow: 0 0 0 3px rgba(255,110,180,0.15); }
+  ::-webkit-scrollbar { height: 4px; }
+  ::-webkit-scrollbar-track { background: #ffe4ec; }
+  ::-webkit-scrollbar-thumb { background: #ff6eb4; border-radius: 4px; }
 `;
 
-const pinStyles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", background: "linear-gradient(160deg, #fff0f5 0%, #fdf2f8 60%, #ffe4ec 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Plus Jakarta Sans', sans-serif", padding: 20 },
-  card: { background: "rgba(255,255,255,0.9)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1.5px solid rgba(255,180,210,0.4)", borderRadius: 28, padding: "48px 36px", textAlign: "center", width: "100%", maxWidth: 360, boxShadow: "0 24px 64px rgba(233,30,99,0.12)" },
-  logoRow: { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 4 },
-  logoDot: { fontSize: 18, color: "#ff4d8c" },
-  logoTxt: { fontSize: 24, fontWeight: 800, background: "linear-gradient(135deg, #ff4d8c, #e91e63)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" },
-  logoSub: { color: "#c77dab", fontSize: 13, fontWeight: 500, marginBottom: 28, letterSpacing: "0.05em" },
-  lockEmoji: { fontSize: 52, marginBottom: 16 },
-  pinHint: { color: "#a0738c", fontSize: 14, fontWeight: 600, marginBottom: 14 },
-  pinInput: { width: "100%", background: "#fff0f7", border: "1.5px solid rgba(255,180,210,0.5)", borderRadius: 16, color: "#2d1b2e", fontSize: 26, fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, padding: "14px", textAlign: "center", letterSpacing: "0.4em", marginBottom: 8, transition: "all 0.2s" },
-  pinInputErr: { borderColor: "rgba(220,50,80,0.4) !important", background: "rgba(255,230,235,0.8)" },
-  pinErrTxt: { color: "#c62a5e", fontSize: 13, marginBottom: 10, fontWeight: 500 },
-  btn: { width: "100%", background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 16, color: "#fff", fontSize: 16, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "15px", cursor: "pointer", marginTop: 8, boxShadow: "0 8px 28px rgba(233,30,99,0.35)" },
-  footer: { fontSize: 11, color: "#d4aec1", marginTop: 22 },
+const modalStyles: Record<string, React.CSSProperties> = {
+  overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 },
+  modal: { background: "#fff", borderRadius: 32, maxWidth: 500, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: 28, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" },
+  title: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 24, fontWeight: 800, color: "#e91e63", marginBottom: 20, textAlign: "center" },
+  content: { fontSize: 14, color: "#2d1b2e", lineHeight: 1.6, marginBottom: 24 },
+  buttons: { display: "flex", justifyContent: "center" },
+  acceptBtn: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 40, padding: "14px 28px", fontSize: 16, fontWeight: 700, cursor: "pointer", color: "#fff", width: "100%" },
 };
 
-const dashboardStyles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", background: "linear-gradient(160deg, #fff0f5 0%, #fdf2f8 60%, #ffe4ec 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e" },
-  header: { background: "rgba(255,255,255,0.8)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,180,210,0.2)", padding: "0 20px", position: "sticky", top: 0, zIndex: 100 },
-  headerInner: { maxWidth: 700, margin: "0 auto", padding: "14px 0", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  logoRow: { display: "flex", alignItems: "center", gap: 8 },
-  logoDot: { fontSize: 16, color: "#ff4d8c" },
-  logoTxt: { fontSize: 20, fontWeight: 800, background: "linear-gradient(135deg, #ff4d8c, #e91e63)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" },
-  headerSub: { fontSize: 11, color: "#c77dab", fontWeight: 500, textAlign: "center", padding: "0 0 10px" },
-  logoutBtn: { background: "rgba(255,240,247,0.9)", border: "1px solid rgba(255,180,210,0.4)", borderRadius: 12, color: "#e91e63", fontSize: 13, fontWeight: 600, padding: "8px 16px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
-  statsRow: { display: "flex", gap: 12, padding: "20px 16px 0", overflowX: "auto", maxWidth: 700, margin: "0 auto", width: "100%" },
-  statCard: { flex: "1 0 120px", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1.5px solid rgba(255,180,210,0.25)", borderRadius: 20, padding: "16px", display: "flex", flexDirection: "column", gap: 4, boxShadow: "0 4px 20px rgba(233,30,99,0.07)", minWidth: 120 },
-  statIcon: { fontSize: 22 },
-  statVal: { fontSize: 26, fontWeight: 800, color: "#2d1b2e", lineHeight: 1 },
-  statLabel: { fontSize: 11, color: "#a0738c", fontWeight: 500 },
-  tabsRow: { display: "flex", gap: 8, padding: "16px 16px 0", maxWidth: 700, margin: "0 auto", width: "100%", flexWrap: "wrap" },
-  tab: { flex: 1, background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(255,180,210,0.3)", borderRadius: 14, color: "#c77dab", fontSize: 13, fontWeight: 600, padding: "11px 8px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", transition: "all 0.2s" },
-  tabActive: { background: "linear-gradient(135deg, rgba(255,110,180,0.15), rgba(233,30,99,0.1))", border: "1.5px solid rgba(233,30,99,0.35)", color: "#e91e63" },
-  main: { padding: "20px 16px 60px", maxWidth: 700, margin: "0 auto" },
-  filterRow: { display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" },
-  filterBtn: { background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(255,180,210,0.3)", borderRadius: 30, padding: "8px 20px", fontSize: 13, fontWeight: 600, color: "#c77dab", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
-  filterActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", color: "#fff" },
-  weekScroll: { display: "flex", gap: 8, overflowX: "auto", paddingBottom: 12, marginBottom: 20 },
-  weekDay: { minWidth: 56, height: 82, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,180,210,0.3)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, cursor: "pointer", flexShrink: 0, position: "relative", transition: "all 0.2s", boxShadow: "0 2px 10px rgba(233,30,99,0.05)" },
-  weekDayActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", boxShadow: "0 6px 20px rgba(233,30,99,0.3)" },
-  weekDayToday: { border: "1.5px solid #ff6eb4", boxShadow: "0 0 0 3px rgba(255,110,180,0.1)" },
-  wdName: { fontSize: 10, color: "#c77dab", fontWeight: 600, textTransform: "uppercase" },
-  wdNum: { fontSize: 21, fontWeight: 800, color: "#2d1b2e", lineHeight: 1 },
-  wdBadge: { position: "absolute", top: 6, right: 6, minWidth: 18, height: 18, borderRadius: 9, background: "#e91e63", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" },
-  secTitle: { fontSize: 17, fontWeight: 700, color: "#2d1b2e", marginBottom: 14 },
-  secSub: { fontSize: 13, color: "#a0738c", marginBottom: 18 },
-  emptyCard: { textAlign: "center", padding: "36px 20px", background: "rgba(255,255,255,0.7)", borderRadius: 20, border: "1.5px dashed rgba(255,180,210,0.4)" },
-  emptyTxt: { marginTop: 8, color: "#c77dab", fontSize: 14, fontWeight: 500 },
-  aptList: { display: "flex", flexDirection: "column", gap: 12 },
-  aptCard: { background: "rgba(255,255,255,0.92)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1.5px solid rgba(255,180,210,0.25)", borderRadius: 20, padding: "16px", display: "flex", gap: 12, alignItems: "flex-start", boxShadow: "0 4px 16px rgba(233,30,99,0.06)", transition: "all 0.2s" },
-  aptConfirmed: { borderColor: "rgba(16,185,129,0.3)", background: "rgba(240,255,250,0.9)" },
-  aptCancelled: { opacity: 0.45 },
-  aptTimeCol: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 48 },
-  aptTime: { fontSize: 17, fontWeight: 800, color: "#e91e63" },
-  aptStatus: { fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 10 },
-  statusOk: { background: "rgba(16,185,129,0.12)", color: "#059669" },
-  statusWait: { background: "rgba(245,158,11,0.12)", color: "#d97706" },
-  statusNo: { background: "rgba(220,50,80,0.1)", color: "#c62a5e" },
-  aptInfo: { flex: 1 },
-  aptName: { fontSize: 15, fontWeight: 700, color: "#2d1b2e", marginBottom: 2 },
-  aptSvc: { fontSize: 13, color: "#a0738c", marginBottom: 2 },
-  aptProf: { fontSize: 12, color: "#c77dab", marginBottom: 4 },
-  aptPrice: { fontSize: 15, fontWeight: 800, color: "#e91e63" },
-  aptBtns: { display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 },
-  btnConfirmApt: { background: "linear-gradient(135deg, #10b981, #059669)", border: "none", borderRadius: 12, color: "#fff", fontSize: 12, fontWeight: 700, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" },
-  btnComplete: { background: "linear-gradient(135deg, #6b7280, #4b5563)", border: "none", borderRadius: 12, color: "#fff", fontSize: 12, fontWeight: 700, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" },
-  btnMove: { background: "rgba(255,240,247,0.9)", border: "1px solid rgba(255,110,180,0.35)", borderRadius: 12, color: "#e91e63", fontSize: 12, fontWeight: 600, padding: "9px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" },
-  topList: { display: "flex", flexDirection: "column", gap: 10 },
-  topItem: { display: "flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,0.85)", borderRadius: 16, padding: "14px", border: "1.5px solid rgba(255,180,210,0.2)", boxShadow: "0 2px 10px rgba(233,30,99,0.05)" },
-  topRank: { fontSize: 17, fontWeight: 800, color: "#ffb3d1", minWidth: 28 },
-  topInfo: { flex: 1 },
-  topName: { fontSize: 14, fontWeight: 600, color: "#2d1b2e", marginBottom: 6 },
-  topBarWrap: { height: 6, background: "#ffe4ec", borderRadius: 3, marginBottom: 6, overflow: "hidden" },
-  topBar: { height: "100%", background: "linear-gradient(90deg, #ff6eb4, #e91e63)", borderRadius: 3, transition: "width 0.6s ease" },
-  topMeta: { display: "flex", justifyContent: "space-between" },
-  topCount: { fontSize: 12, color: "#c77dab" },
-  topRev: { fontSize: 14, fontWeight: 800, color: "#e91e63" },
-  svcList: { display: "flex", flexDirection: "column", gap: 10 },
-  svcCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,180,210,0.25)", borderRadius: 18, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, boxShadow: "0 2px 10px rgba(233,30,99,0.05)", transition: "opacity 0.2s" },
-  svcOff: { opacity: 0.45 },
-  svcName: { fontSize: 14, fontWeight: 600, color: "#2d1b2e", marginBottom: 3 },
-  svcDesc: { fontSize: 12, color: "#a0738c", marginBottom: 6 },
-  svcPrice: { fontSize: 16, fontWeight: 800, color: "#e91e63" },
-  toggleBtn: { border: "none", borderRadius: 20, fontSize: 12, fontWeight: 700, padding: "7px 14px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap", flexShrink: 0 },
-  toggleOn: { background: "rgba(16,185,129,0.12)", color: "#059669" },
-  toggleOff: { background: "rgba(200,170,185,0.15)", color: "#a0738c" },
-  addForm: { display: "flex", flexDirection: "column", gap: 10 },
-  btnAdd: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 16, color: "#fff", fontSize: 15, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "14px", cursor: "pointer", boxShadow: "0 6px 20px rgba(233,30,99,0.3)" },
-  slotsGrid: { display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 },
-  slotCard: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, borderRadius: 14, padding: "10px 14px", border: "1.5px solid rgba(255,180,210,0.3)", minWidth: 120, flex: "1 0 120px", transition: "all 0.2s", cursor: "pointer" },
-  slotOn: { background: "rgba(255,240,247,0.9)", borderColor: "rgba(255,110,180,0.4)" },
-  slotOffCard: { background: "rgba(245,235,240,0.5)", opacity: 0.6 },
-  slotBlockedCard: { background: "rgba(255,220,220,0.8)", borderColor: "rgba(220,50,80,0.4)", opacity: 0.8 },
-  slotTime: { fontSize: 15, fontWeight: 700, color: "#2d1b2e" },
-  slotFooter: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0" },
-  slotCount: { fontSize: 13, color: "#a0738c", fontWeight: 500 },
-  resetBtn: { background: "rgba(255,240,247,0.9)", border: "1px solid rgba(255,110,180,0.35)", borderRadius: 12, color: "#e91e63", fontSize: 13, fontWeight: 600, padding: "8px 16px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
-  input: { width: "100%", background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,180,210,0.45)", borderRadius: 16, color: "#2d1b2e", fontSize: 15, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "13px 16px", transition: "all 0.2s", fontWeight: 500 },
-  label: { display: "block", fontSize: 13, fontWeight: 600, color: "#a0738c", marginBottom: 8 },
-  overlay: { position: "fixed", inset: 0, background: "rgba(45,27,46,0.4)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200, padding: 16 },
-  modal: { background: "rgba(255,252,254,0.98)", border: "1.5px solid rgba(255,180,210,0.4)", borderRadius: "24px 24px 16px 16px", padding: "26px 22px 32px", width: "100%", maxWidth: 500, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 -8px 40px rgba(233,30,99,0.12)" },
-  modalTitle: { fontSize: 20, fontWeight: 800, color: "#2d1b2e", marginBottom: 4 },
-  modalSub: { fontSize: 13, color: "#a0738c", marginBottom: 20 },
-  modalSlots: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8, marginBottom: 20 },
-  modalSlotBtn: { background: "rgba(255,240,247,0.8)", border: "1.5px solid rgba(255,180,210,0.4)", borderRadius: 12, color: "#2d1b2e", fontSize: 13, fontWeight: 600, padding: "8px 12px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", transition: "all 0.15s" },
-  modalSlotActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", color: "#fff", boxShadow: "0 4px 14px rgba(233,30,99,0.3)" },
-  modalActions: { display: "flex", gap: 10 },
-  btnModalCancel: { flex: 1, background: "rgba(245,235,240,0.9)", border: "1.5px solid rgba(200,170,185,0.4)", borderRadius: 14, color: "#a0738c", fontSize: 14, fontWeight: 600, padding: "13px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
-  btnModalConfirm: { flex: 1, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 14, color: "#fff", fontSize: 14, fontWeight: 800, padding: "13px", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
-  billingPeriodRow: { display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" },
-  billingPeriodBtn: { background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(255,180,210,0.3)", borderRadius: 30, padding: "8px 20px", fontSize: 13, fontWeight: 600, color: "#c77dab", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" },
-  billingPeriodActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", color: "#fff" },
-  billingCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,180,210,0.25)", borderRadius: 20, padding: "16px", marginBottom: 12, boxShadow: "0 2px 10px rgba(233,30,99,0.05)" },
-  billingHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  billingDate: { fontSize: 16, fontWeight: 700, color: "#2d1b2e" },
-  billingTotal: { fontSize: 18, fontWeight: 800, color: "#e91e63" },
-  billingDetails: { borderTop: "1px solid rgba(255,180,210,0.3)", paddingTop: 12 },
-  billingItem: { display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13 },
-  billingItemName: { color: "#a0738c" },
-  billingItemPrice: { fontWeight: 600, color: "#2d1b2e" },
-  marketingCard: { background: "rgba(255,255,255,0.9)", borderRadius: 20, padding: "16px", marginBottom: 16, border: "1px solid rgba(255,110,180,0.2)" },
-  marketingTitle: { fontSize: 15, fontWeight: 700, marginBottom: 12, color: "#e91e63" },
-  copyBox: { background: "#f9f0f5", borderRadius: 12, padding: "12px", marginBottom: 8 },
-  copyText: { fontSize: 13, color: "#2d1b2e", marginBottom: 12, lineHeight: 1.5 },
-  copyBtn: { background: "#e91e63", border: "none", borderRadius: 8, padding: "6px 12px", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" },
-  marketingNote: { background: "rgba(255,240,247,0.8)", borderRadius: 16, padding: "12px", marginTop: 16, textAlign: "center", fontSize: 12, color: "#a0738c" },
+const styles: Record<string, React.CSSProperties> = {
+  page: { minHeight: "100vh", background: "linear-gradient(160deg, #fff0f5 0%, #fdf2f8 60%, #ffe4ec 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e", display: "flex", flexDirection: "column" },
+  header: { textAlign: "center", padding: "30px 20px 20px", background: "linear-gradient(180deg, rgba(255,110,180,0.08) 0%, transparent 100%)", borderBottom: "1px solid rgba(255,110,180,0.1)" },
+  logoWrap: { display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  logoSub: { margin: 0, fontSize: 12, color: "rgba(45,27,46,0.5)", letterSpacing: "0.15em", textTransform: "uppercase" },
+  progressWrap: { display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 20px", gap: 0, flexWrap: "wrap", rowGap: 8 },
+  progressItem: { display: "flex", alignItems: "center", gap: 6 },
+  progressCircle: { width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.8)", border: "2px solid rgba(45,27,46,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 600, color: "rgba(45,27,46,0.4)", transition: "all 0.3s" },
+  progressActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "2px solid #ff6eb4", color: "#fff", boxShadow: "0 0 16px rgba(255,110,180,0.5)" },
+  progressLabel: { fontSize: 12, fontWeight: 500, transition: "color 0.3s" },
+  progressLine: { width: 24, height: 2, background: "rgba(45,27,46,0.1)", margin: "0 4px", transition: "background 0.3s" },
+  progressLineActive: { background: "linear-gradient(90deg, #ff6eb4, #e91e63)" },
+  main: { flex: 1, padding: "0 16px 40px", maxWidth: 500, width: "100%", margin: "0 auto" },
+  stepWrap: { display: "flex", flexDirection: "column", gap: 0 },
+  stepTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 26, fontWeight: 800, margin: "0 0 6px", color: "#2d1b2e" },
+  stepSub: { color: "rgba(45,27,46,0.5)", fontSize: 14, margin: "0 0 24px" },
+  serviceGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14, marginBottom: 24 },
+  serviceCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 20, padding: "22px 20px", position: "relative", overflow: "hidden", transition: "all 0.25s ease", cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
+  serviceCardActive: { border: "1.5px solid #ff6eb4", background: "rgba(255,255,255,1)", boxShadow: "0 0 30px rgba(255,110,180,0.2)" },
+  serviceIcon: { fontSize: 32, display: "block", marginBottom: 12 },
+  serviceName: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 16, fontWeight: 700, margin: "0 0 6px", color: "#2d1b2e" },
+  serviceDesc: { fontSize: 13, color: "rgba(45,27,46,0.6)", margin: "0 0 16px", lineHeight: 1.5 },
+  serviceFooter: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  servicePrice: { fontWeight: 700, fontSize: 18, color: "#e91e63", fontFamily: "'Plus Jakarta Sans', sans-serif" },
+  serviceDuration: { fontSize: 12, color: "rgba(45,27,46,0.5)", background: "rgba(255,240,247,0.8)", padding: "3px 10px", borderRadius: 20 },
+  selectedBadge: { position: "absolute", top: 12, right: 12, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", color: "#fff", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 },
+  profGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14, marginBottom: 24 },
+  profCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 20, padding: "28px 20px", textAlign: "left", position: "relative", transition: "all 0.25s ease", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
+  profCardActive: { border: "1.5px solid #ff6eb4", background: "rgba(255,255,255,1)", boxShadow: "0 0 30px rgba(255,110,180,0.2)" },
+  profAvatar: { width: 48, height: 48, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #ff6eb4, #e91e63)", flexShrink: 0, boxShadow: "0 4px 12px rgba(233,30,99,0.3)" },
+  profName: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 16, fontWeight: 700, margin: 0, color: "#2d1b2e" },
+  profRole: { fontSize: 13, color: "rgba(45,27,46,0.5)", margin: 0 },
+  calendarScroll: { display: "flex", gap: 10, overflowX: "auto", paddingBottom: 12, marginBottom: 24, paddingTop: 4 },
+  calDay: { minWidth: 60, height: 78, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, transition: "all 0.2s", cursor: "pointer", flexShrink: 0, boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
+  calDayActive: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", boxShadow: "0 4px 20px rgba(233,30,99,0.3)" },
+  calDayToday: { border: "1.5px solid #ff6eb4", boxShadow: "0 0 0 3px rgba(255,110,180,0.1)" },
+  calDayName: { fontSize: 11, color: "rgba(45,27,46,0.5)", fontWeight: 500, textTransform: "uppercase" },
+  calDayNum: { fontSize: 22, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif", lineHeight: 1, color: "#2d1b2e" },
+  calDayMonth: { fontSize: 10, color: "rgba(45,27,46,0.5)" },
+  slotTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 16, fontWeight: 700, margin: "0 0 14px", color: "#2d1b2e" },
+  slotGrid: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 },
+  slotBtn: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 12, color: "#2d1b2e", fontSize: 14, fontWeight: 600, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "10px 16px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, transition: "all 0.2s", minWidth: 72 },
+  slotBooked: { background: "rgba(245,235,240,0.6)", border: "1.5px solid rgba(45,27,46,0.1)", color: "rgba(45,27,46,0.3)", cursor: "not-allowed" },
+  slotSelected: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "1.5px solid #e91e63", boxShadow: "0 4px 16px rgba(233,30,99,0.3)", color: "#fff" },
+  slotBusyLabel: { fontSize: 9, color: "rgba(45,27,46,0.3)", letterSpacing: "0.05em" },
+  summaryCard: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 20, padding: "20px 22px", marginBottom: 16, boxShadow: "0 2px 10px rgba(0,0,0,0.02)" },
+  summaryTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: 15, margin: "0 0 14px", color: "#2d1b2e" },
+  summaryRow: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14, color: "rgba(45,27,46,0.6)", padding: "6px 0", borderBottom: "1px solid rgba(45,27,46,0.05)" },
+  mapContainer: { marginTop: 16, marginBottom: 16, borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" },
+  formGroup: { marginBottom: 16 },
+  label: { display: "block", fontSize: 13, fontWeight: 600, color: "rgba(45,27,46,0.6)", marginBottom: 8 },
+  input: { width: "100%", background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: 12, color: "#2d1b2e", fontSize: 15, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "13px 16px", transition: "all 0.2s" },
+  phoneWrap: { display: "flex", alignItems: "stretch" },
+  phonePrefix: { background: "rgba(255,255,255,0.9)", border: "1.5px solid rgba(255,110,180,0.2)", borderRadius: "12px 0 0 12px", color: "#e91e63", fontWeight: 700, padding: "13px 14px", fontSize: 15, display: "flex", alignItems: "center", borderRight: "none" },
+  primaryBtn: { width: "100%", background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 16, color: "#fff", fontSize: 16, fontWeight: 700, fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "16px", cursor: "pointer", marginTop: 8, boxShadow: "0 8px 32px rgba(233,30,99,0.3)", transition: "all 0.2s" },
+  btnDisabled: { opacity: 0.5, cursor: "not-allowed", boxShadow: "none" },
+  backBtn: { background: "transparent", border: "none", color: "rgba(45,27,46,0.5)", fontSize: 14, cursor: "pointer", padding: "0 0 16px", fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 500, textAlign: "left" },
+  errorMsg: { background: "rgba(220,50,80,0.1)", border: "1px solid rgba(220,50,80,0.3)", borderRadius: 12, color: "#c62a5e", fontSize: 13, padding: "12px 16px", marginTop: 8 },
+  disclaimer: { fontSize: 12, color: "rgba(45,27,46,0.4)", textAlign: "center", marginTop: 12, lineHeight: 1.5 },
+  successCard: { maxWidth: 420, margin: "40px auto", padding: "32px 24px", background: "rgba(255,255,255,0.95)", border: "1.5px solid rgba(255,110,180,0.3)", borderRadius: 28, textAlign: "center", boxShadow: "0 20px 80px rgba(233,30,99,0.1)" },
+  successIcon: { fontSize: 48, marginBottom: 16 },
+  successTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 26, fontWeight: 800, background: "linear-gradient(135deg, #ff6eb4, #e91e63)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: "0 0 12px" },
+  successText: { fontSize: 14, color: "rgba(45,27,46,0.6)", lineHeight: 1.5, margin: "0 0 10px" },
+  aliasCard: { background: "#f0f0f0", padding: 12, borderRadius: 12, margin: "12px 0", textAlign: "center" },
+  whatsappBtn: { display: "block", background: "#25D366", color: "#fff", textDecoration: "none", padding: "14px", borderRadius: 40, margin: "16px 0", fontWeight: 700, fontSize: 14, textAlign: "center" },
+  footer: { textAlign: "center", padding: "20px", borderTop: "1px solid rgba(255,110,180,0.1)" },
 };
