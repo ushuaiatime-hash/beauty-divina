@@ -8,7 +8,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Profesionales y sus servicios (con especialidad)
+// ========== PROFESIONALES Y SERVICIOS ==========
+
 const PROFESSIONALS = [
   {
     id: "milagros",
@@ -20,21 +21,21 @@ const PROFESSIONALS = [
         name: "Esmaltado Semipermanente",
         price: 30000,
         duration: 60,
-        desc: "Esmaltado de larga duración realizado sobre el largo natural de la uña, ideal para uñas fuertes y resistentes. Incluye diseño a elección.",
+        desc: "Esmaltado de larga duración realizado sobre el largo natural de la uña. Incluye diseño a elección.",
       },
       {
         id: 2,
         name: "Capping en Polygel",
         price: 35000,
         duration: 120,
-        desc: "Capa fina de polygel sobre la uña natural que brinda mayor resistencia y protección, ideal para uñas débiles o quebradizas. Incluye diseño a elección.",
+        desc: "Capa fina de polygel sobre la uña natural que brinda mayor resistencia y protección. Incluye diseño a elección.",
       },
       {
         id: 3,
         name: "Esculpidas en Polygel",
         price: 40000,
         duration: 150,
-        desc: "Alargamiento de uñas en polygel que permite lograr el largo y la forma deseada (almendra, cuadrada, coffin o stiletto). Incluye diseño a elección. Precio válido hasta largo 2. Consultar por otros largos.",
+        desc: "Alargamiento de uñas en polygel. Forma deseada (almendra, cuadrada, coffin o stiletto). Incluye diseño. Precio válido hasta largo 2.",
       },
     ],
   },
@@ -45,10 +46,45 @@ const PROFESSIONALS = [
     services: [
       {
         id: 4,
-        name: "Cosmetología / Cosmiatría",
+        name: "Limpieza Facial Profunda",
+        price: 15000,
+        duration: 60,
+        desc: "Limpieza facial profunda con extracción, hidratación y masaje.",
+      },
+      {
+        id: 5,
+        name: "Masajes Faciales",
+        price: 12000,
+        duration: 45,
+        desc: "Masaje facial tonificante con productos de alta calidad.",
+      },
+      {
+        id: 6,
+        name: "Dermaplaning",
+        price: 14000,
+        duration: 45,
+        desc: "Exfoliación profunda con bisturí para eliminar células muertas y vello facial.",
+      },
+      {
+        id: 7,
+        name: "Tratamiento Corporal",
+        price: 18000,
+        duration: 60,
+        desc: "Tratamiento corporal personalizado para mejorar la textura de la piel.",
+      },
+      {
+        id: 8,
+        name: "Exfoliación Corporal",
+        price: 13000,
+        duration: 45,
+        desc: "Exfoliación corporal para renovar la piel y eliminar impurezas.",
+      },
+      {
+        id: 9,
+        name: "Peeling Químico",
         price: 20000,
-        duration: 90,
-        desc: "Limpieza facial profunda, masajes faciales, dermaplaning, tratamiento corporal, exfoliación corporal, peeling químico. Tratamientos para acné, rosácea, manchas y anti-age.",
+        duration: 60,
+        desc: "Peeling químico para tratar manchas, acné y signos de envejecimiento.",
       },
     ],
   },
@@ -58,11 +94,11 @@ const PROFESSIONALS = [
     specialty: "Podóloga",
     services: [
       {
-        id: 5,
+        id: 10,
         name: "Pedicuria y Podología",
         price: 10000,
         duration: 30,
-        desc: "Corte y tratamiento de uñas, limpieza de talones, extracción de uñas encarnadas y cuidado integral de la salud de los pies.",
+        desc: "Corte y tratamiento de uñas, limpieza de talones, extracción de uñas encarnadas y cuidado integral de los pies.",
       },
     ],
   },
@@ -72,22 +108,24 @@ const PROFESSIONALS = [
     specialty: "Especialistas en Depilación Definitiva",
     services: [
       {
-        id: 6,
+        id: 11,
         name: "Depilación Definitiva (Cuerpo Completo)",
         price: 28000,
         duration: 30,
         desc: "Eliminación progresiva del vello con tecnología láser Soprano Ice, segura y prácticamente indolora.",
       },
       {
-        id: 7,
+        id: 12,
         name: "Depilación Definitiva (Zonas a elección)",
         price: 7000,
         duration: 30,
-        desc: "Eliminación progresiva del vello con tecnología láser Soprano Ice, segura y prácticamente indolora. Elegí las zonas que desees.",
+        desc: "Eliminación progresiva del vello con tecnología láser Soprano Ice. Elegí las zonas que desees.",
       },
     ],
   },
 ];
+
+// ========== CONSTANTES ==========
 
 const TIME_SLOTS = [
   "09:00","09:30","10:00","10:30","11:00","11:30",
@@ -101,6 +139,8 @@ const OWNER = {
   titular: "Milagros Celeste Dominguez",
   direccion: "Cap. O. Cairo 601, Monte Grande",
 };
+
+// ========== FUNCIONES DE FECHA ==========
 
 function getArgentinaDate(): Date {
   const now = new Date();
@@ -129,6 +169,8 @@ function addDays(date: Date, days: number) {
 
 const DAY_NAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+// ========== COMPONENTE PRINCIPAL ==========
 
 export default function ReservarPage() {
   const [mostrarPoliticas, setMostrarPoliticas] = useState(true);
@@ -221,6 +263,8 @@ export default function ReservarPage() {
     setLoading(false);
   }
 
+  // ========== PANTALLA DE POLÍTICAS ==========
+
   if (mostrarPoliticas) {
     return (
       <div style={styles.page}>
@@ -250,6 +294,8 @@ export default function ReservarPage() {
     );
   }
 
+  // ========== PANTALLA DE ÉXITO ==========
+
   if (success) {
     return (
       <div style={styles.page}>
@@ -274,6 +320,8 @@ export default function ReservarPage() {
       </div>
     );
   }
+
+  // ========== FLUJO PRINCIPAL ==========
 
   return (
     <div style={styles.page}>
@@ -310,6 +358,8 @@ export default function ReservarPage() {
       </div>
 
       <main style={{ ...styles.main, maxWidth: 500 }}>
+
+        {/* ===== PASO 1: PROFESIONAL ===== */}
         {step === 1 && (
           <div style={styles.stepWrap} className="fadeIn">
             <h2 style={styles.stepTitle}>✨ ¿Con quién querés atenderte? ✨</h2>
@@ -333,6 +383,7 @@ export default function ReservarPage() {
           </div>
         )}
 
+        {/* ===== PASO 2: SERVICIO ===== */}
         {step === 2 && (
           <div style={styles.stepWrap} className="fadeIn">
             <button style={styles.backBtn} onClick={() => setStep(1)}>← Volver</button>
@@ -355,6 +406,7 @@ export default function ReservarPage() {
           </div>
         )}
 
+        {/* ===== PASO 3: FECHA ===== */}
         {step === 3 && (
           <div style={styles.stepWrap} className="fadeIn">
             <button style={styles.backBtn} onClick={() => setStep(2)}>← Volver</button>
@@ -377,6 +429,7 @@ export default function ReservarPage() {
           </div>
         )}
 
+        {/* ===== PASO 4: HORARIO ===== */}
         {step === 4 && (
           <div style={styles.stepWrap} className="fadeIn">
             <button style={styles.backBtn} onClick={() => setStep(3)}>← Volver</button>
@@ -402,6 +455,7 @@ export default function ReservarPage() {
           </div>
         )}
 
+        {/* ===== PASO 5: DATOS ===== */}
         {step === 5 && (
           <div style={styles.stepWrap} className="fadeIn">
             <button style={styles.backBtn} onClick={() => setStep(4)}>← Volver</button>
