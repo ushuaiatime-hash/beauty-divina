@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 
-// ========== PROFESIONALES Y SERVICIOS ==========
-
 const PROFESSIONALS = [
   {
     id: "milagros",
