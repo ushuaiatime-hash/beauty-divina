@@ -18,21 +18,21 @@ const PROFESSIONALS = [
     services: [
       {
         id: 1,
-        name: "Esmaltado Semipermanente",
+        name: "💅 Esmaltado Semipermanente",
         price: 30000,
         duration: 60,
         desc: "Esmaltado de larga duración realizado sobre el largo natural de la uña. Incluye diseño a elección.",
       },
       {
         id: 2,
-        name: "Capping en Polygel",
+        name: "✨ Capping en Polygel",
         price: 35000,
         duration: 120,
         desc: "Capa fina de polygel sobre la uña natural que brinda mayor resistencia y protección. Incluye diseño a elección.",
       },
       {
         id: 3,
-        name: "Esculpidas en Polygel",
+        name: "💎 Esculpidas en Polygel",
         price: 40000,
         duration: 150,
         desc: "Alargamiento de uñas en polygel. Forma deseada (almendra, cuadrada, coffin o stiletto). Incluye diseño. Precio válido hasta largo 2.",
@@ -46,42 +46,42 @@ const PROFESSIONALS = [
     services: [
       {
         id: 4,
-        name: "Limpieza profunda",
+        name: "🧼 Limpieza profunda",
         price: 20000,
         duration: 60,
         desc: "Limpieza facial profunda con extracción, hidratación y masaje.",
       },
       {
         id: 5,
-        name: "Limpieza profunda con dermaplaning",
+        name: "🗡️ Limpieza profunda con dermaplaning",
         price: 25000,
         duration: 75,
         desc: "Limpieza facial profunda + dermaplaning para eliminar células muertas y vello facial.",
       },
       {
         id: 6,
-        name: "Microneedling (sesión)",
+        name: "💉 Microneedling (sesión)",
         price: 35000,
         duration: 90,
         desc: "Tratamiento de microneedling para estimular colágeno. Se recomiendan de 4 a 6 sesiones.",
       },
       {
         id: 7,
-        name: "Peeling químico suave",
+        name: "🧪 Peeling químico suave",
         price: 25000,
         duration: 60,
         desc: "Renovación de piel con peeling químico suave para tratar manchas, acné y signos de envejecimiento.",
       },
       {
         id: 8,
-        name: "Limpieza profunda corporal",
+        name: "🧴 Limpieza profunda corporal",
         price: 25000,
         duration: 60,
         desc: "Limpieza corporal profunda por zona a tratar. Ideal para mejorar la textura de la piel.",
       },
       {
         id: 9,
-        name: "Tratamiento capilar (sesión)",
+        name: "💇🏻‍♀️ Tratamiento capilar (sesión)",
         price: 35000,
         duration: 90,
         desc: "Tratamiento capilar + refuerzo. Se recomiendan de 5 a 8 sesiones según el caso.",
@@ -95,7 +95,7 @@ const PROFESSIONALS = [
     services: [
       {
         id: 10,
-        name: "Masaje descontracturante/relajante",
+        name: "💆🏻‍♂️ Masaje descontracturante/relajante",
         price: 15000,
         duration: 40,
         desc: "Masaje descontracturante o relajante de cuerpo entero o zona a tratar (35-40 min).",
@@ -109,7 +109,7 @@ const PROFESSIONALS = [
     services: [
       {
         id: 11,
-        name: "Pedicuria y Podología",
+        name: "🦶 Pedicuria y Podología",
         price: 10000,
         duration: 30,
         desc: "Corte y tratamiento de uñas, limpieza de talones, extracción de uñas encarnadas y cuidado integral de los pies.",
@@ -123,14 +123,14 @@ const PROFESSIONALS = [
     services: [
       {
         id: 12,
-        name: "Depilación Definitiva (Cuerpo Completo)",
+        name: "✨ Depilación Definitiva (Cuerpo Completo)",
         price: 28000,
         duration: 30,
         desc: "Eliminación progresiva del vello con tecnología láser Soprano Ice, segura y prácticamente indolora.",
       },
       {
         id: 13,
-        name: "Depilación Definitiva (Zonas a elección)",
+        name: "✨ Depilación Definitiva (Zonas a elección)",
         price: 7000,
         duration: 30,
         desc: "Eliminación progresiva del vello con tecnología láser Soprano Ice. Elegí las zonas que desees.",
@@ -408,18 +408,36 @@ export default function ReservarPage() {
             <p style={styles.stepSub}>Elegí el tratamiento que más te guste de {selectedProfessional?.name} - {selectedProfessional?.specialty}</p>
             
             <div style={styles.serviceGrid}>
-              {selectedProfessional?.services.map((s: any) => (
-                <div key={s.id} style={{ ...styles.serviceCard, ...(selectedService?.id === s.id ? styles.serviceCardActive : {}) }} className="card-hover" onClick={() => { setSelectedService(s); setStep(3); }}>
-                  <span style={styles.serviceIcon}>💅</span>
-                  <h3 style={styles.serviceName}>{s.name}</h3>
-                  <p style={styles.serviceDesc}>{s.desc}</p>
-                  <div style={styles.serviceFooter}>
-                    <span style={styles.servicePrice}>${s.price.toLocaleString("es-AR")}</span>
-                    <span style={styles.serviceDuration}>{s.duration} min</span>
+              {selectedProfessional?.services.map((s: any) => {
+                // Función para obtener emoji con tono de piel blanco
+                const getEmoji = (name: string) => {
+                  if (name.includes('Masaje')) return '💆🏻‍♂️';
+                  if (name.includes('Depilación')) return '✨';
+                  if (name.includes('Pedicuria')) return '🦶';
+                  if (name.includes('Limpieza profunda con dermaplaning')) return '🗡️';
+                  if (name.includes('Limpieza profunda corporal')) return '🧴';
+                  if (name.includes('Limpieza')) return '🧼';
+                  if (name.includes('Microneedling')) return '💉';
+                  if (name.includes('Peeling')) return '🧪';
+                  if (name.includes('Tratamiento capilar')) return '💇🏻‍♀️';
+                  if (name.includes('Capping')) return '✨';
+                  if (name.includes('Esculpidas')) return '💎';
+                  if (name.includes('Esmaltado')) return '💅';
+                  return '💅';
+                };
+                return (
+                  <div key={s.id} style={{ ...styles.serviceCard, ...(selectedService?.id === s.id ? styles.serviceCardActive : {}) }} className="card-hover" onClick={() => { setSelectedService(s); setStep(3); }}>
+                    <span style={styles.serviceIcon}>{getEmoji(s.name)}</span>
+                    <h3 style={styles.serviceName}>{s.name}</h3>
+                    <p style={styles.serviceDesc}>{s.desc}</p>
+                    <div style={styles.serviceFooter}>
+                      <span style={styles.servicePrice}>${s.price.toLocaleString("es-AR")}</span>
+                      <span style={styles.serviceDuration}>{s.duration} min</span>
+                    </div>
+                    {selectedService?.id === s.id && <div style={styles.selectedBadge}>✓ Seleccionado</div>}
                   </div>
-                  {selectedService?.id === s.id && <div style={styles.selectedBadge}>✓ Seleccionado</div>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -481,7 +499,7 @@ export default function ReservarPage() {
             <p style={styles.stepSub}>Último paso para reservar tu turno</p>
             <div style={styles.summaryCard}>
               <h4 style={styles.summaryTitle}>📋 Resumen de tu turno</h4>
-              <div style={styles.summaryRow}><span>👩‍💼 Profesional</span><strong>{selectedProfessional?.name} - {selectedProfessional?.specialty}</strong></div>
+              <div style={styles.summaryRow}><span>👩🏻‍💼 Profesional</span><strong>{selectedProfessional?.name} - {selectedProfessional?.specialty}</strong></div>
               <div style={styles.summaryRow}><span>💅🏻 Servicio</span><strong>{selectedService?.name}</strong></div>
               <div style={styles.summaryRow}><span>📆 Fecha</span><strong>{formatDisplayDate(selectedDate)}</strong></div>
               <div style={styles.summaryRow}><span>⏰ Hora</span><strong>{selectedTime}</strong></div>
