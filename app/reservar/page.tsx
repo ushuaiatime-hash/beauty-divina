@@ -253,6 +253,7 @@ export default function ReservarPage() {
     }]);
     
     if (dbError) { 
+      console.error("Error al guardar:", dbError);
       setError("Hubo un error al guardar. Intentá de nuevo."); 
       setLoading(false); 
       return; 
@@ -285,7 +286,7 @@ export default function ReservarPage() {
   if (mostrarPoliticas) {
     return (
       <div style={styles.page}>
-        <style>{globalCSS}</style>
+        <style dangerouslySetInnerHTML={{ __html: globalCSS }} />
         <div style={modalStyles.overlay}>
           <div style={modalStyles.modal}>
             <h3 style={modalStyles.title}>✨️ POLÍTICAS DE TRABAJO 🧚🏻‍♀️✨</h3>
@@ -316,7 +317,7 @@ export default function ReservarPage() {
   if (success) {
     return (
       <div style={styles.page}>
-        <style>{globalCSS}</style>
+        <style dangerouslySetInnerHTML={{ __html: globalCSS }} />
         <div style={styles.successCard}>
           <div style={styles.successIcon}>🎉</div>
           <h2 style={styles.successTitle}>¡Reserva pendiente!</h2>
@@ -342,7 +343,7 @@ export default function ReservarPage() {
 
   return (
     <div style={styles.page}>
-      <style>{globalCSS}</style>
+      <style dangerouslySetInnerHTML={{ __html: globalCSS }} />
       
       <header style={{ ...styles.header, padding: "30px 20px 20px" }}>
         <div style={styles.logoWrap}>
@@ -547,6 +548,8 @@ export default function ReservarPage() {
   );
 }
 
+// ========== ESTILOS GLOBALES (CORREGIDOS) ==========
+
 const globalCSS = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
   * { box-sizing: border-box; }
@@ -561,6 +564,8 @@ const globalCSS = `
   ::-webkit-scrollbar-thumb { background: #ff6eb4; border-radius: 4px; }
 `;
 
+// ========== ESTILOS DE MODALES ==========
+
 const modalStyles: Record<string, React.CSSProperties> = {
   overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 },
   modal: { background: "#fff", borderRadius: 32, maxWidth: 500, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: 28, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" },
@@ -569,6 +574,8 @@ const modalStyles: Record<string, React.CSSProperties> = {
   buttons: { display: "flex", justifyContent: "center" },
   acceptBtn: { background: "linear-gradient(135deg, #ff6eb4, #e91e63)", border: "none", borderRadius: 40, padding: "14px 28px", fontSize: 16, fontWeight: 700, cursor: "pointer", color: "#fff", width: "100%" },
 };
+
+// ========== ESTILOS PRINCIPALES ==========
 
 const styles: Record<string, React.CSSProperties> = {
   page: { minHeight: "100vh", background: "linear-gradient(160deg, #fff0f5 0%, #fdf2f8 60%, #ffe4ec 100%)", fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#2d1b2e", display: "flex", flexDirection: "column" },
