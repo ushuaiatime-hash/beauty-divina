@@ -18,7 +18,7 @@ const PROFESSIONALS = [
     services: [
       {
         id: 1,
-        name: "💅 Esmaltado Semipermanente",
+        name: "💅🏻 Esmaltado Semipermanente",
         price: 30000,
         duration: 60,
         desc: "Esmaltado de larga duración realizado sobre el largo natural de la uña. Incluye diseño a elección.",
@@ -263,7 +263,7 @@ export default function ReservarPage() {
       `✨️ NUEVA RESERVA CON SEÑA PENDIENTE - Beauty Divina\n\n` +
       `👤 Cliente: ${clientName}\n` +
       `📱 WhatsApp: +${fullPhone}\n` +
-      `💅 Servicio: ${selectedService.name}\n` +
+      `💅🏻 Servicio: ${selectedService.name}\n` +
       `👩🏻‍💼 Profesional: ${professionalFullName}\n` +
       `📆 Fecha: ${day}/${month}/${year}\n` +
       `⏰ Hora: ${selectedTime}\n` +
@@ -409,7 +409,6 @@ export default function ReservarPage() {
             
             <div style={styles.serviceGrid}>
               {selectedProfessional?.services.map((s: any) => {
-                // Función para obtener emoji con tono de piel blanco
                 const getEmoji = (name: string) => {
                   if (name.includes('Masaje')) return '💆🏻‍♂️';
                   if (name.includes('Depilación')) return '✨';
@@ -422,8 +421,8 @@ export default function ReservarPage() {
                   if (name.includes('Tratamiento capilar')) return '💇🏻‍♀️';
                   if (name.includes('Capping')) return '✨';
                   if (name.includes('Esculpidas')) return '💎';
-                  if (name.includes('Esmaltado')) return '💅';
-                  return '💅';
+                  if (name.includes('Esmaltado')) return '💅🏻';
+                  return '💅🏻';
                 };
                 return (
                   <div key={s.id} style={{ ...styles.serviceCard, ...(selectedService?.id === s.id ? styles.serviceCardActive : {}) }} className="card-hover" onClick={() => { setSelectedService(s); setStep(3); }}>
