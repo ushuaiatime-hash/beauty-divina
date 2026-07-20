@@ -1,0 +1,236 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+const PROFESSIONALS = [
+  {
+    id: "milagros",
+    name: "Milagros ✨",
+    specialty: "Especialista en Uñas",
+    services: [
+      { id: 1, name: "💅🏻 Esmaltado Semipermanente", price: 30000, duration: 60, desc: "Esmaltado de larga duración." },
+      { id: 2, name: "✨ Capping en Polygel", price: 35000, duration: 120, desc: "Capa fina de polygel." },
+      { id: 3, name: "💎 Esculpidas en Polygel", price: 40000, duration: 150, desc: "Alargamiento de uñas." },
+    ],
+  },
+  {
+    id: "micaela_cosmi",
+    name: "Micaela ✨",
+    specialty: "Cosmiatra",
+    services: [
+      { id: 4, name: "🧼 Limpieza profunda", price: 20000, duration: 60, desc: "Limpieza facial profunda." },
+      { id: 5, name: "🗡️ Limpieza con dermaplaning", price: 25000, duration: 75, desc: "Limpieza + dermaplaning." },
+      { id: 6, name: "💉 Microneedling", price: 35000, duration: 90, desc: "Microneedling (4 a 6 sesiones)." },
+      { id: 7, name: "🧪 Peeling químico suave", price: 25000, duration: 60, desc: "Renovación de piel." },
+      { id: 8, name: "🧴 Limpieza profunda corporal", price: 25000, duration: 60, desc: "Limpieza corporal por zona." },
+      { id: 9, name: "💇🏻‍♀️ Tratamiento capilar", price: 35000, duration: 90, desc: "Tratamiento capilar (5 a 8 sesiones)." },
+    ],
+  },
+  {
+    id: "micaela_masajista",
+    name: "Micaela ✨",
+    specialty: "Masajista",
+    services: [
+      { id: 10, name: "💆🏻‍♂️ Masaje descontracturante", price: 15000, duration: 40, desc: "Masaje cuerpo entero (35-40 min)." },
+    ],
+  },
+  {
+    id: "patricia",
+    name: "Patricia ✨",
+    specialty: "Podóloga",
+    services: [
+      { id: 11, name: "🦶 Pedicuria y Podología", price: 10000, duration: 30, desc: "Corte y tratamiento de uñas." },
+    ],
+  },
+  {
+    id: "patricia_rosa",
+    name: "Patricia y Rosa ✨",
+    specialty: "Depilación Definitiva",
+    services: [
+      { id: 12, name: "✨ Depilación Cuerpo Completo", price: 28000, duration: 30, desc: "Eliminación de vello con láser." },
+      { id: 13, name: "✨ Depilación Zonas a elección", price: 7000, duration: 30, desc: "Eliminación de vello. Elegí zonas." },
+    ],
+  },
+];
+
+const TIME_SLOTS = [
+  "09:00","09:30","10:00","10:30","11:00","11:30",
+  "12:00","12:30","14:00","14:30","15:00","15:30",
+  "16:00","16:30","17:00","17:30","18:00",
+];
+
+const OWNER = {
+  whatsapp: "541155916379",
+  alias: "Milagrosdominguez150",
+  titular: "Milagros Celeste Dominguez",
+  direccion: "Cap. O. Cairo 601, Monte Grande",
+};
+
+export default function ReservarPage() {
+  const [step, setStep] = useState(1);
+  const [selectedProf, setSelectedProf] = useState<any>(null);
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleReservar = async () => {
+    if (!selectedService || !selectedDate || !selectedTime || !name || !phone) {
+      setError("Completá todos los campos");
+      return;
+    }
+    setLoading(true);
+    setError("");
+
+    const fullPhone = "54" + phone.replace(/\D/g, "");
+    const profName = selectedProf.name + " - " + selectedProf.specialty;
+
+    try {
+      const { error: dbError } = await supabase.from("appointments").insert({
+        client_name: name,
+        client_phone: fullPhone,
+        service_name: selectedService.name,
+        professional_name: profName,
+        date: selectedDate,
+        time: selectedTime,
+        duration_minutes: selectedService.duration,
+        price: selectedService.price,
+        status: "pending_seña",
+      });
+
+      if (dbError) {
+        console.error("Error Supabase:", dbError);
+        setError("Error al guardar: " + dbError.message);
+        setLoading(false);
+        return;
+      }
+
+      const [year, month, day] = selectedDate.split("-");
+      const msg = encodeURIComponent(
+        `✨ NUEVA RESERVA - Beauty Divina\n\n` +
+        `👤 Cliente: ${name}\n` +
+        `📱 WhatsApp: +${fullPhone}\n` +
+        `💅 Servicio: ${selectedService.name}\n` +
+        `👩🏻‍💼 Profesional: ${profName}\n` +
+        `📆 Fecha: ${day}/${month}/${year}\n` +
+        `⏰ Hora: ${selectedTime}\n` +
+        `💰 Total: $${selectedService.price.toLocaleString("es-AR")}\n` +
+        `💸 Seña: $5.000\n\n` +
+        `📲 Alias: ${OWNER.alias}\n` +
+        `👤 Titular: ${OWNER.titular}\n` +
+        `📍 ${OWNER.direccion}`
+      );
+      window.open(`https://wa.me/${OWNER.whatsapp}?text=${msg}`, "_blank");
+      
+      setSuccess(true);
+    } catch (err) {
+      console.error("Error:", err);
+      setError("Error inesperado. Intentá de nuevo.");
+    }
+    setLoading(false);
+  };
+
+  if (success) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#fff0f5", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ background: "white", padding: 40, borderRadius: 20, textAlign: "center", maxWidth: 400 }}>
+          <div style={{ fontSize: 48 }}>🎉</div>
+          <h2 style={{ color: "#e91e63" }}>¡Reserva pendiente!</h2>
+          <p>Transferí la seña de <strong>$5.000</strong> a:</p>
+          <p><strong>Alias:</strong> {OWNER.alias}</p>
+          <p><strong>Titular:</strong> {OWNER.titular}</p>
+          <a href={`https://wa.me/${OWNER.whatsapp}`} target="_blank" style={{ display: "block", background: "#25D366", color: "white", padding: 12, borderRadius: 40, textDecoration: "none", marginTop: 16 }}>
+            💬 Enviar comprobante
+          </a>
+          <button onClick={() => { setSuccess(false); setStep(1); setSelectedProf(null); setSelectedService(null); setSelectedTime(""); setName(""); setPhone(""); }} style={{ marginTop: 16, background: "#e91e63", color: "white", border: "none", padding: "10px 20px", borderRadius: 8, cursor: "pointer" }}>
+            Hacer otra reserva
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#fff0f5", fontFamily: "Arial, sans-serif", padding: 20 }}>
+      <div style={{ maxWidth: 400, margin: "0 auto" }}>
+        <h1 style={{ textAlign: "center", color: "#e91e63" }}>✨ Beauty Divina ✨</h1>
+        
+        {error && <div style={{ background: "#fce4ec", color: "#c62828", padding: 12, borderRadius: 8, marginBottom: 16 }}>{error}</div>}
+
+        {step === 1 && (
+          <div>
+            <h2>¿Con quién querés atenderte?</h2>
+            {PROFESSIONALS.map((p) => (
+              <div key={p.id} onClick={() => { setSelectedProf(p); setStep(2); }} style={{ background: "white", padding: 15, borderRadius: 12, marginBottom: 10, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+                <h3>{p.name}</h3>
+                <p style={{ color: "#666" }}>{p.specialty}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {step === 2 && selectedProf && (
+          <div>
+            <button onClick={() => setStep(1)} style={{ marginBottom: 15, background: "none", border: "none", color: "#e91e63", cursor: "pointer" }}>← Volver</button>
+            <h2>Servicios de {selectedProf.name}</h2>
+            {selectedProf.services.map((s: any) => (
+              <div key={s.id} onClick={() => { setSelectedService(s); setStep(3); }} style={{ background: "white", padding: 15, borderRadius: 12, marginBottom: 10, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+                <h3>{s.name}</h3>
+                <p style={{ color: "#666" }}>{s.desc}</p>
+                <p><strong style={{ color: "#e91e63" }}>${s.price.toLocaleString()}</strong> - {s.duration} min</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {step === 3 && (
+          <div>
+            <button onClick={() => setStep(2)} style={{ marginBottom: 15, background: "none", border: "none", color: "#e91e63", cursor: "pointer" }}>← Volver</button>
+            <h2>Elegí fecha y horario</h2>
+            <input type="date" min={new Date().toISOString().split("T")[0]} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #ddd", marginBottom: 12 }} />
+            {selectedDate && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {TIME_SLOTS.map((t) => (
+                  <button key={t} onClick={() => { setSelectedTime(t); setStep(4); }} style={{ padding: "8px 14px", borderRadius: 8, border: selectedTime === t ? "2px solid #e91e63" : "1px solid #ddd", background: selectedTime === t ? "#fce4ec" : "white", cursor: "pointer" }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 4 && (
+          <div>
+            <button onClick={() => setStep(3)} style={{ marginBottom: 15, background: "none", border: "none", color: "#e91e63", cursor: "pointer" }}>← Volver</button>
+            <h2>Tus datos</h2>
+            <input type="text" placeholder="Nombre completo" value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #ddd", marginBottom: 12 }} />
+            <input type="tel" placeholder="Teléfono (sin 54)" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #ddd", marginBottom: 12 }} />
+            <div style={{ background: "#f5f5f5", padding: 15, borderRadius: 8, marginBottom: 16 }}>
+              <p><strong>Resumen:</strong></p>
+              <p>Servicio: {selectedService?.name}</p>
+              <p>Profesional: {selectedProf?.name}</p>
+              <p>Fecha: {selectedDate}</p>
+              <p>Hora: {selectedTime}</p>
+              <p><strong style={{ color: "#e91e63" }}>Total: ${selectedService?.price.toLocaleString()}</strong></p>
+            </div>
+            <button onClick={handleReservar} disabled={loading} style={{ width: "100%", padding: 14, background: "#e91e63", color: "white", border: "none", borderRadius: 8, fontSize: 16, cursor: "pointer" }}>
+              {loading ? "Reservando..." : "✨ Reservar turno ✨"}
+            </button>
+            <p style={{ fontSize: 12, color: "#999", textAlign: "center", marginTop: 8 }}>Se requiere seña de $5.000 para confirmar</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
